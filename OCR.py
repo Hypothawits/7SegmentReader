@@ -46,7 +46,7 @@ def Recognize(iplimage):
     except AttributeError:
         full_text = api.GetUNLVText().replace("^", "")
 
-    conf = api.MeanTextConf()
+    # conf = api.MeanTextConf()
     # Ger the first line found by tesseract
     for index, text in enumerate(full_text.split('\n')):
         # Some char filter
@@ -66,7 +66,7 @@ def Recognize(iplimage):
                 ):
                     pass
                 else:
-                    return 0
+                    return '0'
             # most common filter valur
 
             most_common_filter_pos = cv2.getTrackbarPos('Filter', 'frame')
@@ -80,11 +80,11 @@ def Recognize(iplimage):
                 out = count.most_common()[0][0]
                 ## show if the last is the most common
                 # if out == meas_stack[-1]:
-                print "Timestamp: " + datetime.datetime.now().strftime('%y%m%d%H%M%S_%f')
+     #           print "Timestamp: " + datetime.datetime.now().strftime('%y%m%d%H%M%S_%f')
                 # print "Line " + str(index)
-                print out
+                return out
         except:
-            pass
+            return 'no value found'
 
 def SaveData():
     print "Data Saved (Not Really)"
@@ -103,7 +103,8 @@ def preprocessImage(imageSelection):
     erosion_iters = cv2.getTrackbarPos('Erode', 'frame')
     imageSelection = cv2.erode(imageSelection, kernel, iterations = erosion_iters)
     return imageSelection
-
+print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+print "Start Programe"
 
 
 if __name__ == '__main__':
@@ -130,13 +131,16 @@ if __name__ == '__main__':
     expected_value_desv = 20
     ############################################################################
     # Video capture
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
+    
     # Tesseract config
     api = tesseract.TessBaseAPI()
     api.Init(".", ConfigSectionMap("OCR")['fonttype'], tesseract.OEM_DEFAULT)
     api.SetVariable("tessedit_char_whitelist", ConfigSectionMap("OCR")['whitelist'])
     api.SetPageSegMode(tesseract.PSM_AUTO)
     api.SetVariable("debug_file", "/dev/null")
+
+
 
     def nothing(x):
         pass
@@ -205,7 +209,7 @@ if __name__ == '__main__':
 
     cv2.setMouseCallback('frame', draw_rectangle)
 
-
+    
     # stack
     meas_stack = []
     phase_stack = []
@@ -215,10 +219,14 @@ if __name__ == '__main__':
     moviment_trigger = 40
     
 #Main Loop
+    integer_Text = ""
+    decimal_Text = ""
+
     while True:
         # Capture frame-by-frame, Frame is the whole image captured
         ret, frame = cap.read()
         if frame is None:
+            print 'frame is None'
             break
         # add menu
         frame_h, frame_w = frame.shape[:2]
@@ -265,40 +273,33 @@ if __name__ == '__main__':
         # OCR work
         ########################################################################
         #Integer Selection Processing
-        if (height > 10) and (width > 10):
+        if (height > 10) and (width > 10) and (height2 > 10) and (width2 > 10):
             # display_inter selection on other window
             channel = 1
-            display_inter = preprocessImage(display_inter)
-           
-            # Show selection
-            cv2.imshow('Integer selection', display_inter)
-
-            #image = wx.ImageFromStream(f)
-            #bitmap = wx.BitmapFromImage(image)
-            #static_bitmap.SetBitmap(bitmap)
-
-            #Prep and Recognize
-            iplimage = cv.CreateImageHeader((width, height), cv.IPL_DEPTH_8U, channel)
-            cv.SetData(iplimage, display_inter.tostring(), display_inter.dtype.itemsize * channel * (width))
-            Recognize(iplimage)
-        
-        #Decimal Selection Processing
-        if (height2 > 10) and (width2 > 10):
             channel2 = 1
+
+            display_inter = preprocessImage(display_inter)
             display_decimal = preprocessImage(display_decimal)
-            
-            # Show selection
+
+            # Show selections
+            cv2.imshow('Integer selection', display_inter)
             cv2.imshow('Decimal selection', display_decimal)
 
-            #image = wx.ImageFromStream(f)
-            #bitmap = wx.BitmapFromImage(image)
-            #static_bitmap.SetBitmap(bitmap)
-            # iplimage = cv.CreateImageHeader((width, height), cv.IPL_DEPTH_8U, channel)
-            # cv.SetData(iplimage, display_decimal).tostring(), display_inter.dtype.itemsize * channel * (width))
-            # Recognize(iplimage)
+            #Prep 
+            iplimage = cv.CreateImageHeader((width, height), cv.IPL_DEPTH_8U, channel)
+            cv.SetData(iplimage, display_inter.tostring(), display_inter.dtype.itemsize * channel * (width))
+            
+            iplimage2 = cv.CreateImageHeader((width2, height2), cv.IPL_DEPTH_8U, channel2)
+            cv.SetData(iplimage2, display_decimal.tostring(), display_decimal.dtype.itemsize * channel2 * (width2))
 
+            #Recognize 
+            print Recognize(iplimage)
+            print Recognize(iplimage2)
+        
+        #Decimal Selection Processing
+                       
 
-
+            
 
 
 
