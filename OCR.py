@@ -82,7 +82,7 @@ def Recognize(iplimage):
                 # if out == meas_stack[-1]:
      #           print "Timestamp: " + datetime.datetime.now().strftime('%y%m%d%H%M%S_%f')
                 # print "Line " + str(index)
-                if conf >= 50:  #dont accept values below 50% confidance
+                if conf >= 0: #50:  #dont accept values below 50% confidance
                     return [out, conf]
                 else:
                     return 'no value'
@@ -285,13 +285,14 @@ if __name__ == '__main__':
         #Integer Selection Processing
         if (height > 10) and (width > 10) and (height2 > 10) and (width2 > 10):
             
-            integer_Text = getText(display_inter,   "int")
+            # integer_Text = getText(display_inter,   "int")
             decimal_Text = getText(display_decimal, "decimal")
+            print decimal_Text[0] #+ "    " + "%d"%decimal_Text[1] + " dec"
 
-            if integer_Text != 'no value':
-                print integer_Text[0] + "    " + "%d"%integer_Text[1] + " int"
-            if decimal_Text != 'no value':
-                print decimal_Text[0] + "    " + "%d"%decimal_Text[1] + " dec"
+            # if integer_Text != 'no value':
+                # print integer_Text[0] + "    " + "%d"%integer_Text[1] + " int"
+            # if decimal_Text != 'no value':
+                # print decimal_Text[0] + "    " + "%d"%decimal_Text[1] + " dec"
 
         c = cv.WaitKey(20)
 
