@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import tesseract
 import numpy as np
 import cv2
@@ -9,7 +8,6 @@ import datetime
 from   time import strftime
 from   collections import Counter
 import ConfigParser
-
 
 def ConfigSectionMap(section):
     global Config
@@ -37,60 +35,11 @@ def OnClose(event):
     global stopOpenCv
     stopOpenCv = True
 
-def Recognize(iplimage):
-    global meas_stack
-    tesseract.SetCvImage(iplimage, api)
-
-    try:
-        full_text = api.GetUTF8Text()
-    except AttributeError:
-        full_text = api.GetUNLVText().replace("^", "")
-
-    conf = api.MeanTextConf()
-    # Get the first line found by tesseract
-    for index, text in enumerate(full_text.split('\n')):
-        # Some char filter
-        text = text.replace(" ", "")
-        for char in ConfigSectionMap("POSPROCESS")['strip']:
-            text = text.replace(char, "")
-        try:
-            text_val = float(text)
-            # handle OCRed value if exists an expected value prvided by user
-            if expected_value != "":
-                up_limit = (float(expected_value)) * (1 + (float(expected_value_desv) / 100))
-                dn_limit = (float(expected_value)) * (1 - (float(expected_value_desv) / 100))
-                if (
-                    len(text) > 0 and
-                    text_val > dn_limit and
-                    text_val < up_limit
-                ):
-                    pass
-                else:
-                    return '0'
-            # most common filter valur
-
-            most_common_filter_pos = cv2.getTrackbarPos('Filter', 'frame')
-            # add last text
-            meas_stack.append(text)
-            if len(meas_stack) > most_common_filter_pos:
-                # remove old
-                meas_stack = meas_stack[-(most_common_filter_pos + 1):]
-                # count most frequent value
-                count = Counter(meas_stack)
-                out = count.most_common()[0][0]
-                ## show if the last is the most common
-                # if out == meas_stack[-1]:
-     #           print "Timestamp: " + datetime.datetime.now().strftime('%y%m%d%H%M%S_%f')
-                # print "Line " + str(index)
-                if conf >= 0: #50:  #dont accept values below 50% confidance
-                    return [out, conf]
-                else:
-                    return 'no value'
-        except:
-            return 'no value'
-
 def SaveData():
-
+    try:
+        print display_inter
+    except:
+        print "could print display inter"
     print "Data Saved (Not Really)"
 
 def getthresholdedimg(hsv):
@@ -100,6 +49,7 @@ def getthresholdedimg(hsv):
     return both
 
 def preprocessImage(imageSelection, X):
+    #preprocesses the selection
     imageSelection = cv2.cvtColor(imageSelection, cv2.COLOR_BGR2GRAY) #GreyScale
     thresh = cv2.getTrackbarPos(X, 'frame')
     imageSelection = cv2.threshold(imageSelection, thresh, 255, cv2.THRESH_BINARY)[1]
@@ -108,36 +58,90 @@ def preprocessImage(imageSelection, X):
     imageSelection = cv2.erode(imageSelection, kernel, iterations = erosion_iters)
     return imageSelection
 
-def getSelection(startX, endX, startY, endY, R, G, B):
-    min_x = min(startX, endX)
-    max_x = max(startX, endX)
-    min_y = min(startY, endY)
-    max_y = max(startY, endY)
-    selection = frame[min_y:max_y, min_x:max_x]
-    
+def getSelection(startX, startY, size):
+    #gets the selection from the main image
+    selection = frame[startY - size:(startY + size), startX - size:(startX + size)]
     return selection
 
-def getText(display, select):
-    if select == "int":
-        threshold = 'Threshold I' 
-        selection = 'Integer selection'
-    elif select == "decimal":
-        threshold = 'Threshold D'
-        selection = 'Decimal selection'
+def drawPoint(origin, size, offset):
+
+    cv2.circle(frame, (origin[0] + offset[0], origin[1] + offset[1]), 1 , (0, 0, 255), -1)   
+
+def SevenSegCo(size, ax,ay,bx,by,cx,cy,dx,dy,ex,ey,fx,fy,gx,gy):
+    #takes the 'relative' float position and converts to pixel positions
+    #on the selection square
+
+    size = size*2   #length of the Square selection
+
+    #convert to pixel position on selection (x, y)
+    A = [int(size*float(ax)),int(size*float(ay))]
+    B = [int(size*float(bx)),int(size*float(by))]
+    C = [int(size*float(cx)),int(size*float(cy))]
+    D = [int(size*float(dx)),int(size*float(dy))]
+    E = [int(size*float(ex)),int(size*float(ey))]
+    F = [int(size*float(fx)),int(size*float(fy))]
+    G = [int(size*float(gx)),int(size*float(gy))]
+
+    #return list of cooridantes
+    SevenSeg = [A,B,C,D,E,F,G]
+    return SevenSeg
+
+def drawSevenSegPoints(origin, size, SevenSeg):
+    A = SevenSeg[0]
+    B = SevenSeg[1]
+    C = SevenSeg[2]
+    D = SevenSeg[3]
+    E = SevenSeg[4]
+    F = SevenSeg[5]
+    G = SevenSeg[6]
+
+    drawPoint(origin, size, A)
+    drawPoint(origin, size, B)
+    drawPoint(origin, size, C)
+    drawPoint(origin, size, D)
+    drawPoint(origin, size, E)
+    drawPoint(origin, size, F)
+    drawPoint(origin, size, G)
+
+def getValueList(SevenSeg, display_inter):
+    #get the value (1/0) for each of the 7 segments
+    valueList = []
+    #Get A value
+    for Seg in SevenSeg:
+        valueList.append(SegValue(Seg, display_inter))
+    return valueList
+
+def SegValue(Seg, display_inter):
+    x,y = Seg[0],Seg[1]
+    if display_inter[y,x].any(): #if any value not zero, white pixel
+        return 0
     else:
-        return "Error"
+        return 1
 
-    height, width, channel = display.shape
-    channel = 1
-    
-    display   = preprocessImage(display, threshold)
-    cv2.imshow(selection, display)
+def convertToNumber(X):
+    if X == [1,1,1,1,1,1,0]:
+        return 0
+    if X == [0,1,1,0,0,0,0]:
+        return 1
+    if X == [1,1,0,1,1,0,1]:
+        return 2
+    if X == [1,1,1,1,0,0,1]:
+        return 3
+    if X == [0,1,1,0,0,1,1]:
+        return 4
+    if X == [1,0,1,1,0,1,1]:
+        return 5
+    if X == [1,0,1,1,1,1,1]:
+        return 6
+    if X == [1,1,1,0,0,0,0]:
+        return 7
+    if X == [1,1,1,1,1,1,1]:
+        return 8    
+    if X == [1,1,1,1,0,1,1]:
+        return 9
+    else:
+        return 0
 
-
-    iplimage = cv.CreateImageHeader((width, height), cv.IPL_DEPTH_8U, channel)
-    cv.SetData(iplimage, display.tostring(), display.dtype.itemsize * channel * (width))
-    Text = Recognize(iplimage)
-    return Text
 
 print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 print "Start Programe"
@@ -148,12 +152,13 @@ if __name__ == '__main__':
     ############################################################################
     # Pre process params
     thresh              = ConfigSectionMap("PREPROCESS")['threshold']
-    thresh_decimal      = ConfigSectionMap("PREPROCESS")['threshold']
     erosion_iters       = ConfigSectionMap("PREPROCESS")['erode']
     most_common_filter  = ConfigSectionMap("POSPROCESS")['filter']
-    
-    start_x, start_y,start_x2, start_y2 = -1, -1, -1, -1
-    end_x, end_y, end_x2, end_y2        = 1, 1, 1, 1
+    box_size            = ConfigSectionMap("PREPROCESS")['size']
+    box_sizeB           = ConfigSectionMap("PREPROCESS")['size']
+
+    start_x, start_y = 100, 100,
+    start_x2, start_y2 = 100, 200,
     
     drawing     = False  # true if mouse is pressed
     draw_second = False  #toggles selection drawing 
@@ -169,20 +174,13 @@ if __name__ == '__main__':
     # Video capture
     cap = cv2.VideoCapture(1)
 
-    # Tesseract config
-    api = tesseract.TessBaseAPI()
-    api.Init(".", ConfigSectionMap("OCR")['fonttype'], tesseract.OEM_DEFAULT)
-    api.SetVariable("tessedit_char_whitelist", ConfigSectionMap("OCR")['whitelist'])
-    api.SetPageSegMode(tesseract.PSM_AUTO)
-    api.SetVariable("debug_file", "/dev/null")
-
     def nothing(x):
         pass
 
     # mouse callback function
     def draw_rectangle(event, x, y, flags, param):
-        global start_x, start_y, end_x, end_y, drawing, expected_value,\
-        start_x2, start_y2, end_x2, end_y2, draw_second
+        global start_x, start_y, drawing, expected_value        
+        global start_x2, start_y2, draw_second
 
         if event == cv2.EVENT_LBUTTONDOWN:
             # menu position
@@ -193,38 +191,28 @@ if __name__ == '__main__':
                 if x > 153 and x < 190:
                     OnClose(event)
                 if x > 195 and x < 252:
-                    print "OpenSource Development: https://github.com/arturaugusto/display_inter_ocr.\nBased on examples availables at https://code.google.com/p/python-tesseract/.\nGPLv2 License"
+                    print "Try read the Screen!"
                 if x > 258 and x < 355:
                     SaveData()
-                if x > 400 and x < 510:
-                     draw_second = False
-                if x > 520 and x < 630: 
+                if x > 375 and x < 460:
+                    draw_second = False                
+                if x > 480 and x < 580:
                     draw_second = True
             else:
                 drawing = True
-                if draw_second: #get decimal selection
-                    start_x2, start_y2 = x, y
-                    end_x2, end_y2 = x, y
-                else: #get integer selection
+                if draw_second == False:
                     start_x, start_y = x, y
-                    end_x, end_y = x, y
+                else:
+                    start_x2, start_y2 = x, y
+
         elif event == cv2.EVENT_LBUTTONUP:
-            drawing = False
-            #toggle between selecting Integer / Decimal
-                  
+            drawing = False                  
 
         elif event == cv2.EVENT_MOUSEMOVE and drawing:
-            if draw_second:
-                if y < 40:      #get Decimal selection
-                    end_x2, end_y2 = x, 41
-                else:
-                    end_x2, end_y2 = x, y
-            else:               #get integer selection
-                if y < 40:
-                    end_x, end_y = x, 41
-                else:
-                    end_x, end_y = x, y
-
+            if draw_second == False:
+                start_x, start_y = x, y
+            else:
+                start_x2, start_y2 = x, y
 
 
     # show main window
@@ -232,18 +220,15 @@ if __name__ == '__main__':
 
     # Show blank image at first
     cv2.namedWindow('Integer selection')
-    cv2.namedWindow('Decimal selection')
     display_inter   = np.zeros((200, 200, 3), np.uint8)
-    display_decimal = np.zeros((200, 200, 3), np.uint8)
     cv2.imshow('frame', display_inter)
-    cv2.imshow('frame', display_decimal)
 
     # GUI
-    cv2.createTrackbar('Threshold I', 'frame', int(thresh),            255,    nothing)
-    cv2.createTrackbar('Erode',       'frame', int(erosion_iters),     4,      nothing)
-    cv2.createTrackbar('Threshold D', 'frame', int(thresh_decimal),    255,    nothing)
-    cv2.createTrackbar('Filter',      'frame', int(most_common_filter),10,     nothing)
-
+    cv2.createTrackbar('Threshold', 'frame', int(thresh),             255,    nothing)
+    cv2.createTrackbar('Erode',     'frame', int(erosion_iters),      4,      nothing)
+    cv2.createTrackbar('Filter',    'frame', int(most_common_filter), 10,     nothing)
+    cv2.createTrackbar('Size',    'frame', int(box_size),           100,    nothing)
+    cv2.createTrackbar('Size B',    'frame', int(box_sizeB),          100,    nothing)
     # menu image
     menu = cv2.imread("menu.png")
     cv2.setMouseCallback('frame', draw_rectangle)
@@ -251,7 +236,6 @@ if __name__ == '__main__':
     meas_stack   = []
     integer_List = []
     decimal_List = []
-
 #Main Loop
     while True:
         # Capture frame-by-frame, Frame is the whole image captured
@@ -267,32 +251,49 @@ if __name__ == '__main__':
     # ROI Regions of Interest
     ########################################################################
         #get selections from main image
-        display_inter   = getSelection(start_x, end_x, start_y, end_y,     0,   255, 0)
-        display_decimal = getSelection(start_x2, end_x2, start_y2, end_y2, 255, 0  , 0)
+        size =  cv2.getTrackbarPos('Size',   'frame')
+        sizeB = cv2.getTrackbarPos('Size B', 'frame')
+        display_inter   = getSelection(start_x, start_y, size)
+
+        #preprocess Selection
+        display_inter   = preprocessImage(display_inter, 'Threshold')
+        cv2.imshow('Integer selection', display_inter)
 
         #Draw Rectangle around selections
-        cv2.rectangle(frame, (start_x, start_y),   (end_x, end_y),   (0, 255, 0), 1)    #draw Green box
-        cv2.rectangle(frame, (start_x2, start_y2), (end_x2, end_y2), (0, 0, 225), 1)    #draw Red box
+        cv2.rectangle(frame, (start_x -size, start_y -size),   (start_x +size, start_y +size),   (0, 255, 0), 1)    #draw Green box
+        cv2.rectangle(frame, (int(start_x2 -sizeB*float(0.3)), int(start_y2 -sizeB*float(0.4))),\
+                             (int(start_x2 +sizeB*float(0.3)), int(start_y2 +sizeB*float(0.4))), (255, 0, 0), 1)    #draw Green box
+
+
+        origin = [(start_x -size), (start_y -size)] #(x,y) Top Left is Origin 
+
+        #Set up Integer Segment read Points
+        SevenSegInt1 = SevenSegCo(size, 0.30,0.15, 0.43,0.32, 0.43,0.70, 0.30,0.83, 0.17,0.70, 0.21,0.32, 0.30,0.50 )
+        drawSevenSegPoints(origin, size, SevenSegInt1)
+
+        SevenSegInt2 = SevenSegCo(size, 0.70,0.15, 0.83,0.32, 0.83,0.70, 0.70,0.83, 0.55,0.70, 0.59,0.32, 0.73,0.50)
+        drawSevenSegPoints(origin, size, SevenSegInt2)
+
+        #Read Integer Values
+        Int1ValueList = getValueList(SevenSegInt1,display_inter)
+        Int2ValueList = getValueList(SevenSegInt2,display_inter)
+
+        #Convert to Number
+        Int1Value = convertToNumber(Int1ValueList)
+        Int2Value = convertToNumber(Int2ValueList)  
+
+        #Combine integer components and Decimal
+        temperatureInt = 10*Int1Value + Int2Value 
+
+        print "Temperature = %d"%temperatureInt
+
+
         cv2.imshow('frame', frame)
 
-        #find size of selctions
-        height,  width,  channel_1 = display_inter.shape
-        height2, width2, channel_2 = display_decimal.shape
+        
 
-        ########################################################################
-        # OCR work
-        ########################################################################
-        #Integer Selection Processing
-        if (height > 10) and (width > 10) and (height2 > 10) and (width2 > 10):
-            
-            # integer_Text = getText(display_inter,   "int")
-            decimal_Text = getText(display_decimal, "decimal")
-            print decimal_Text[0] #+ "    " + "%d"%decimal_Text[1] + " dec"
+        
 
-            # if integer_Text != 'no value':
-                # print integer_Text[0] + "    " + "%d"%integer_Text[1] + " int"
-            # if decimal_Text != 'no value':
-                # print decimal_Text[0] + "    " + "%d"%decimal_Text[1] + " dec"
 
         c = cv.WaitKey(20)
 
@@ -305,3 +306,6 @@ if __name__ == '__main__':
     cap.release()
     cv2.destroyAllWindows()
 
+
+#find size of selctions
+# height,  width,  channel_1 = display_inter.shape
