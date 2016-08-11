@@ -156,9 +156,10 @@ if __name__ == '__main__':
     most_common_filter  = ConfigSectionMap("POSPROCESS")['filter']
     box_size            = ConfigSectionMap("PREPROCESS")['size']
     box_sizeB           = ConfigSectionMap("PREPROCESS")['size']
+    threshB             = ConfigSectionMap("PREPROCESS")['threshold']
 
-    start_x, start_y = 100, 100,
-    start_x2, start_y2 = 100, 200,
+    start_x, start_y   = 100, 100,
+    start_x2, start_y2 = 100, 100,
     
     drawing     = False  # true if mouse is pressed
     draw_second = False  #toggles selection drawing 
@@ -223,12 +224,18 @@ if __name__ == '__main__':
     display_inter   = np.zeros((200, 200, 3), np.uint8)
     cv2.imshow('frame', display_inter)
 
+    cv2.namedWindow('Decimal selection')
+    display_decimal   = np.zeros((200, 200, 3), np.uint8)
+    cv2.imshow('frame', display_decimal)
+
     # GUI
-    cv2.createTrackbar('Threshold', 'frame', int(thresh),             255,    nothing)
-    cv2.createTrackbar('Erode',     'frame', int(erosion_iters),      4,      nothing)
-    cv2.createTrackbar('Filter',    'frame', int(most_common_filter), 10,     nothing)
-    cv2.createTrackbar('Size',    'frame', int(box_size),           100,    nothing)
-    cv2.createTrackbar('Size B',    'frame', int(box_sizeB),          100,    nothing)
+    cv2.createTrackbar('Threshold',   'frame', int(thresh),             255,    nothing)
+    cv2.createTrackbar('Threshold B', 'frame', int(threshB),            255,    nothing)
+    cv2.createTrackbar('Size',        'frame', int(box_size),           100,    nothing)
+    cv2.createTrackbar('Size B',      'frame', int(box_sizeB),          100,    nothing)
+    cv2.createTrackbar('Erode',       'frame', int(erosion_iters),      4,      nothing)
+    cv2.createTrackbar('Filter',      'frame', int(most_common_filter), 10,     nothing)
+    
     # menu image
     menu = cv2.imread("menu.png")
     cv2.setMouseCallback('frame', draw_rectangle)
@@ -253,26 +260,36 @@ if __name__ == '__main__':
         #get selections from main image
         size =  cv2.getTrackbarPos('Size',   'frame')
         sizeB = cv2.getTrackbarPos('Size B', 'frame')
+        
         display_inter   = getSelection(start_x, start_y, size)
+        display_decimal = getSelection(start_x2, start_y2, sizeB)
 
         #preprocess Selection
         display_inter   = preprocessImage(display_inter, 'Threshold')
         cv2.imshow('Integer selection', display_inter)
+
+        display_decimal = preprocessImage(display_decimal,'Threshold B')
+        cv2.imshow('Decimal selection', display_decimal)
 
         #Draw Rectangle around selections
         cv2.rectangle(frame, (start_x -size, start_y -size),   (start_x +size, start_y +size),   (0, 255, 0), 1)    #draw Green box
         cv2.rectangle(frame, (int(start_x2 -sizeB*float(0.3)), int(start_y2 -sizeB*float(0.4))),\
                              (int(start_x2 +sizeB*float(0.3)), int(start_y2 +sizeB*float(0.4))), (255, 0, 0), 1)    #draw Green box
 
-
-        origin = [(start_x -size), (start_y -size)] #(x,y) Top Left is Origin 
-
+        origin = [(start_x -size),\
+                  (start_y -size)]      #(x,y) Top Left is Origin 
+        originB = [int(start_x2 -sizeB*float(0.3)),\
+                   int(start_y2 -sizeB*float(0.4))]   #(x,y) Top Left is Origin 
+        
         #Set up Integer Segment read Points
-        SevenSegInt1 = SevenSegCo(size, 0.30,0.15, 0.43,0.32, 0.43,0.70, 0.30,0.83, 0.17,0.70, 0.21,0.32, 0.30,0.50 )
+        SevenSegInt1 = SevenSegCo(size, 0.30,0.15, 0.43,0.32, 0.43,0.70,\
+                                        0.30,0.83, 0.17,0.70, 0.21,0.32, 0.30,0.50 )
         drawSevenSegPoints(origin, size, SevenSegInt1)
 
-        SevenSegInt2 = SevenSegCo(size, 0.70,0.15, 0.83,0.32, 0.83,0.70, 0.70,0.83, 0.55,0.70, 0.59,0.32, 0.73,0.50)
+        SevenSegInt2 = SevenSegCo(size, 0.70,0.15, 0.83,0.32, 0.83,0.70,\
+                                        0.70,0.83, 0.55,0.70, 0.59,0.32, 0.73,0.50)
         drawSevenSegPoints(origin, size, SevenSegInt2)
+
 
         #Read Integer Values
         Int1ValueList = getValueList(SevenSegInt1,display_inter)
@@ -286,8 +303,6 @@ if __name__ == '__main__':
         temperatureInt = 10*Int1Value + Int2Value 
 
         print "Temperature = %d"%temperatureInt
-
-
         cv2.imshow('frame', frame)
 
         
@@ -305,7 +320,6 @@ if __name__ == '__main__':
     # When everything done, release the capture
     cap.release()
     cv2.destroyAllWindows()
-
 
 #find size of selctions
 # height,  width,  channel_1 = display_inter.shape
