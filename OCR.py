@@ -63,8 +63,6 @@ class segBox:
         
         cv2.imshow('frame', frame)
 
-
-
 def ConfigSectionMap(section):
     global Config
     dict1 = {}
@@ -172,17 +170,12 @@ if __name__ == '__main__':
     start_x2, start_y2 = 100, 100,
     start_x3, start_y3 = 100, 100,
     
-    drawing     = False  # true if mouse is pressed
-    draw2 = False  #toggles selection drawing 
-    draw3 = False
-
+    drawing = False  # true if mouse is pressed
+    draw2   = False  
+    draw3   = False
 
     # flag to stop opencv
     stopOpenCv = False
-
-    # user assist vars
-    expected_value = ""
-    expected_value_desv = 20
     ############################################################################
     
     # Video capture
@@ -193,7 +186,7 @@ if __name__ == '__main__':
 
     # mouse callback function
     def draw_rectangle(event, x, y, flags, param):
-        global start_x, start_y, drawing, expected_value        
+        global start_x, start_y, drawing      
         global start_x2, start_y2, draw2, start_x3, start_y3, draw3
 
         if event == cv2.EVENT_LBUTTONDOWN:
@@ -294,19 +287,19 @@ if __name__ == '__main__':
     ########################################################################
     # ROI Regions of Interest
     ########################################################################
-        #get Sizes from sliders
-        # size =  cv2.getTrackbarPos('Size',   'frame')
       #IntBox1
-        IntBox1.size = cv2.getTrackbarPos('Size',   'frame')
+        IntBox1.size     = cv2.getTrackbarPos('Size',   'frame')
         IntBox1.location = [start_x,start_y]
 
+        #get and process the selection
         IntBox1.selection = getSelection(IntBox1.location[0], IntBox1.location[1], IntBox1.size)
         IntBox1.selection = preprocessImage(IntBox1.selection, 'Threshold', 'Int1 selection')
         cv2.imshow('Int1 selection', IntBox1.selection)
         cv2.resizeWindow('Int1 selection', 300, 200)
 
+        #convert image to number
         Int1ValueList = getValueList(IntBox1.segCoordinates,IntBox1.selection)
-        Int1Value = float(convertToNumber(Int1ValueList))
+        Int1Value     = float(convertToNumber(Int1ValueList))
       
       #IntBox1
         IntBox2.size = cv2.getTrackbarPos('Size',   'frame')
@@ -318,10 +311,10 @@ if __name__ == '__main__':
         cv2.resizeWindow('Int2 selection', 300, 200)
 
         Int2ValueList = getValueList(IntBox2.segCoordinates,IntBox2.selection)
-        Int2Value = float(convertToNumber(Int2ValueList))
+        Int2Value     = float(convertToNumber(Int2ValueList))
 
       #Decimal Box
-        DecimalBox.size = cv2.getTrackbarPos('Size B', 'frame')
+        DecimalBox.size     = cv2.getTrackbarPos('Size B', 'frame')
         DecimalBox.location = [start_x3, start_y3]
         
         DecimalBox.selection = getSelection(DecimalBox.location[0], DecimalBox.location[1], DecimalBox.size)
@@ -330,9 +323,11 @@ if __name__ == '__main__':
         cv2.resizeWindow('Decimal selection', 300, 200)
         
         DecValueList = getValueList(DecimalBox.segCoordinates,DecimalBox.selection)
-        DecValue  = float(convertToNumber(DecValueList))
+        DecValue     = float(convertToNumber(DecValueList))
 
        #Draw Rectangle and Location Points
+        #must be done after the selections are made, 
+        #or the box and points will appear in the image!
         IntBox1.drawBoxRectangle()
         IntBox2.drawBoxRectangle()
         DecimalBox.drawBoxRectangle()
@@ -342,9 +337,6 @@ if __name__ == '__main__':
         
         print "Temperature = %0.1f"%temperatureInt
         cv2.imshow('frame', frame)
-
-
-
 
 
         c = cv.WaitKey(20)
@@ -357,6 +349,3 @@ if __name__ == '__main__':
     # When everything done, release the capture
     cap.release()
     cv2.destroyAllWindows()
-
-#find size of selctions
-# height,  width,  channel_1 = display_int1.shape
