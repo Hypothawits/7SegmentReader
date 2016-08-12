@@ -285,33 +285,35 @@ if __name__ == '__main__':
         cv2.rectangle(frame, (start_x -size,   start_y -size),   (start_x +size,   start_y +size),   (0, 255, 0), 1)    #draw Green box
         cv2.rectangle(frame, (start_x2 -sizeB, start_y2 -sizeB), (start_x2 +sizeB, start_y2 +sizeB), (255, 0, 0), 1)    #draw Green box
 
-        origin = [(start_x -size),\
-                  (start_y -size)]      #(x,y) Top Left is Origin 
-        originB = [int(start_x2 -sizeB*float(0.3)),\
-                   int(start_y2 -sizeB*float(0.4))]   #(x,y) Top Left is Origin 
+        origin = [(start_x -size),(start_y -size)]        #(x,y) Top Left is Origin 
+        originB = [(start_x2 -sizeB),(start_y2 -sizeB)]   #(x,y) Top Left is Origin 
         
         #Set up Integer Segment read Points
         SevenSegInt1 = SevenSegCo(size, 0.30,0.15, 0.43,0.32, 0.43,0.70,\
                                         0.30,0.83, 0.17,0.70, 0.21,0.32, 0.30,0.50 )
         SevenSegInt2 = SevenSegCo(size, 0.70,0.15, 0.83,0.32, 0.83,0.70,\
                                         0.70,0.83, 0.55,0.70, 0.59,0.32, 0.73,0.50)
-        
+        SevenSegDecimal = SevenSegCo(sizeB, 0.5,0.15, 0.65,0.25, 0.63,0.65,\
+                                        0.46,0.85, 0.35,0.65, 0.36,0.25, 0.5,0.5)
+
         drawSevenSegPoints(origin, size, SevenSegInt1)
         drawSevenSegPoints(origin, size, SevenSegInt2)
-
+        drawSevenSegPoints(originB, sizeB, SevenSegDecimal)
 
         #Read Integer Values
         Int1ValueList = getValueList(SevenSegInt1,display_inter)
         Int2ValueList = getValueList(SevenSegInt2,display_inter)
+        DecValueList = getValueList(SevenSegDecimal,display_decimal)
 
         #Convert to Number
-        Int1Value = convertToNumber(Int1ValueList)
-        Int2Value = convertToNumber(Int2ValueList)  
+        Int1Value = float(convertToNumber(Int1ValueList))
+        Int2Value = float(convertToNumber(Int2ValueList))  
+        DecValue  = float(convertToNumber(DecValueList))
 
         #Combine integer components and Decimal
-        temperatureInt = 10*Int1Value + Int2Value 
+        temperatureInt = 10*Int1Value + Int2Value + 0.1*DecValue
 
-        print "Temperature = %d"%temperatureInt
+        print "Temperature = %0.1f"%temperatureInt
         cv2.imshow('frame', frame)
 
         
