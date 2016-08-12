@@ -9,6 +9,62 @@ from   time import strftime
 from   collections import Counter
 import ConfigParser
 
+class segBox:
+    #Segment relative locations. Class Variables
+    ax,ay = 0.50, 0.15
+    bx,by = 0.65, 0.25
+    cx,cy = 0.63, 0.65
+    dx,dy = 0.46, 0.85
+    ex,ey = 0.35, 0.65
+    fx,fy = 0.36, 0.25
+    gx,gy = 0.50, 0.50
+
+    selection      = []
+    segCoordinates = []
+    size     = 10
+    location = []
+    
+    
+
+    def __init__(self, colour):
+        self.colour = colour
+
+    def drawBoxRectangle(self):
+        origin   = [self.location[0] - self.size, self.location[1] - self.size]
+
+        #Set Min Size
+        if self.size <10:
+            self.size = 10
+
+        #convert to pixel location within box (top left being origin)
+        self.A = [int(self.size*2*float(self.ax)),int(self.size*2*float(self.ay))]
+        self.B = [int(self.size*2*float(self.bx)),int(self.size*2*float(self.by))]
+        self.C = [int(self.size*2*float(self.cx)),int(self.size*2*float(self.cy))]
+        self.D = [int(self.size*2*float(self.dx)),int(self.size*2*float(self.dy))]
+        self.E = [int(self.size*2*float(self.ex)),int(self.size*2*float(self.ey))]
+        self.F = [int(self.size*2*float(self.fx)),int(self.size*2*float(self.fy))]
+        self.G = [int(self.size*2*float(self.gx)),int(self.size*2*float(self.gy))]
+
+        self.segCoordinates = [self.A,self.B,self.C,self.D,self.E,self.F,self.G]
+        
+        #draw rectangle arround selection
+        cv2.rectangle(frame, (self.location[0] -self.size, self.location[1] -self.size),\
+                             (self.location[0] +self.size, self.location[1] +self.size),\
+                              self.colour, 1) 
+
+        #draw segment indicator points
+        cv2.circle(frame, (origin[0] + self.A[0], origin[1] + self.A[1]), 1 , (0, 0, 255), -1)
+        cv2.circle(frame, (origin[0] + self.B[0], origin[1] + self.B[1]), 1 , (0, 0, 255), -1)
+        cv2.circle(frame, (origin[0] + self.C[0], origin[1] + self.C[1]), 1 , (0, 0, 255), -1)
+        cv2.circle(frame, (origin[0] + self.D[0], origin[1] + self.D[1]), 1 , (0, 0, 255), -1)
+        cv2.circle(frame, (origin[0] + self.E[0], origin[1] + self.E[1]), 1 , (0, 0, 255), -1)
+        cv2.circle(frame, (origin[0] + self.F[0], origin[1] + self.F[1]), 1 , (0, 0, 255), -1)
+        cv2.circle(frame, (origin[0] + self.G[0], origin[1] + self.G[1]), 1 , (0, 0, 255), -1)
+        
+        cv2.imshow('frame', frame)
+
+
+
 def ConfigSectionMap(section):
     global Config
     dict1 = {}
@@ -244,6 +300,11 @@ if __name__ == '__main__':
     meas_stack   = []
     integer_List = []
     decimal_List = []
+
+    #create Boxes
+    DecimalBox  = segBox((255,0,0))
+    
+
 #Main Loop
     while True:
         # Capture frame-by-frame, Frame is the whole image captured
@@ -258,57 +319,70 @@ if __name__ == '__main__':
     ########################################################################
     # ROI Regions of Interest
     ########################################################################
-        #get selections from main image
+        #get Sizes from sliders
         size =  cv2.getTrackbarPos('Size',   'frame')
-        sizeB = cv2.getTrackbarPos('Size B', 'frame')
+        # sizeB = cv2.getTrackbarPos('Size B', 'frame')
+
+        DecimalBox.size = cv2.getTrackbarPos('Size B', 'frame')
+        DecimalBox.location = [start_x2, start_y2]
         
+        DecimalBox.selection = getSelection(DecimalBox.location[0], DecimalBox.location[1], DecimalBox.size)
+        DecimalBox.selection = preprocessImage(DecimalBox.selection, 'Threshold B', 'Decimal selection')
+        cv2.imshow('Decimal selection', DecimalBox.selection)
+        cv2.resizeWindow('Decimal selection', 300, 200)
+        
+        DecimalBox.drawBoxRectangle()
+
+        DecValueList = getValueList(DecimalBox.segCoordinates,DecimalBox.selection)
+        DecValue  = float(convertToNumber(DecValueList))
+
         #set min Size
         if size <10:
             size = 10
-        if sizeB <10:
-            sizeB = 10
+        # if sizeB <10:
+        #     sizeB = 10
 
         display_inter   = getSelection(start_x, start_y, size)
-        display_decimal = getSelection(start_x2, start_y2, sizeB)
+        # display_decimal = getSelection(start_x2, start_y2, sizeB)
 
         #preprocess Selection
         display_inter   = preprocessImage(display_inter, 'Threshold',    'Integer selection')
-        display_decimal = preprocessImage(display_decimal,'Threshold B', 'Decimal selection')
+        # display_decimal = preprocessImage(display_decimal,'Threshold B', 'Decimal selection')
         
         cv2.imshow('Integer selection', display_inter)
-        cv2.imshow('Decimal selection', display_decimal)
+        # cv2.imshow('Decimal selection', display_decimal)
 
         cv2.resizeWindow('Integer selection', 300, 200)
-        cv2.resizeWindow('Decimal selection', 300, 200)
+        # cv2.resizeWindow('Decimal selection', 300, 200)
 
         #Draw Rectangle around selections
         cv2.rectangle(frame, (start_x -size,   start_y -size),   (start_x +size,   start_y +size),   (0, 255, 0), 1)    #draw Green box
-        cv2.rectangle(frame, (start_x2 -sizeB, start_y2 -sizeB), (start_x2 +sizeB, start_y2 +sizeB), (255, 0, 0), 1)    #draw Green box
+        # cv2.rectangle(frame, (start_x2 -sizeB, start_y2 -sizeB), (start_x2 +sizeB, start_y2 +sizeB), (255, 0, 0), 1)    #draw Bluw box
 
         origin = [(start_x -size),(start_y -size)]        #(x,y) Top Left is Origin 
-        originB = [(start_x2 -sizeB),(start_y2 -sizeB)]   #(x,y) Top Left is Origin 
+        # originB = [(start_x2 -sizeB),(start_y2 -sizeB)]   #(x,y) Top Left is Origin 
         
         #Set up Integer Segment read Points
         SevenSegInt1 = SevenSegCo(size, 0.30,0.15, 0.43,0.32, 0.43,0.70,\
                                         0.30,0.83, 0.17,0.70, 0.21,0.32, 0.30,0.50 )
         SevenSegInt2 = SevenSegCo(size, 0.70,0.15, 0.83,0.32, 0.83,0.70,\
                                         0.70,0.83, 0.55,0.70, 0.59,0.32, 0.73,0.50)
-        SevenSegDecimal = SevenSegCo(sizeB, 0.5,0.15, 0.65,0.25, 0.63,0.65,\
-                                        0.46,0.85, 0.35,0.65, 0.36,0.25, 0.5,0.5)
+        # SevenSegDecimal = SevenSegCo(sizeB, 0.5,0.15, 0.65,0.25, 0.63,0.65,\
+        #                                 0.46,0.85, 0.35,0.65, 0.36,0.25, 0.5,0.5)
 
         drawSevenSegPoints(origin, size, SevenSegInt1)
         drawSevenSegPoints(origin, size, SevenSegInt2)
-        drawSevenSegPoints(originB, sizeB, SevenSegDecimal)
+        # drawSevenSegPoints(originB, sizeB, SevenSegDecimal)
 
         #Read Integer Values
         Int1ValueList = getValueList(SevenSegInt1,display_inter)
         Int2ValueList = getValueList(SevenSegInt2,display_inter)
-        DecValueList = getValueList(SevenSegDecimal,display_decimal)
+        # DecValueList  = getValueList(SevenSegDecimal,display_decimal)
 
         #Convert to Number
         Int1Value = float(convertToNumber(Int1ValueList))
         Int2Value = float(convertToNumber(Int2ValueList))  
-        DecValue  = float(convertToNumber(DecValueList))
+        # DecValue  = float(convertToNumber(DecValueList))
 
         #Combine integer components and Decimal
         temperatureInt = 10*Int1Value + Int2Value + 0.1*DecValue
@@ -316,9 +390,6 @@ if __name__ == '__main__':
         print "Temperature = %0.1f"%temperatureInt
         cv2.imshow('frame', frame)
 
-        
-
-        
 
 
         c = cv.WaitKey(20)
