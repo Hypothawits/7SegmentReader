@@ -48,10 +48,10 @@ def getthresholdedimg(hsv):
     both = cv2.add(yellow, blue)
     return both
 
-def preprocessImage(imageSelection, X):
+def preprocessImage(imageSelection, X, frame):
     #preprocesses the selection
     imageSelection = cv2.cvtColor(imageSelection, cv2.COLOR_BGR2GRAY) #GreyScale
-    thresh = cv2.getTrackbarPos(X, 'frame')
+    thresh = cv2.getTrackbarPos(X, frame)
     imageSelection = cv2.threshold(imageSelection, thresh, 255, cv2.THRESH_BINARY)[1]
     kernel = np.ones((5, 5), np.uint8)
     erosion_iters = cv2.getTrackbarPos('Erode', 'frame')
@@ -155,7 +155,7 @@ if __name__ == '__main__':
     erosion_iters       = ConfigSectionMap("PREPROCESS")['erode']
     most_common_filter  = ConfigSectionMap("POSPROCESS")['filter']
     box_size            = ConfigSectionMap("PREPROCESS")['size']
-    box_sizeB           = ConfigSectionMap("PREPROCESS")['size']
+    box_sizeB           = ConfigSectionMap("PREPROCESS")['sizeb']
     threshB             = ConfigSectionMap("PREPROCESS")['threshold']
 
     start_x, start_y   = 100, 100,
@@ -173,7 +173,7 @@ if __name__ == '__main__':
     ############################################################################
     
     # Video capture
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(0)
 
     def nothing(x):
         pass
@@ -229,8 +229,9 @@ if __name__ == '__main__':
     cv2.imshow('frame', display_decimal)
 
     # GUI
-    cv2.createTrackbar('Threshold',   'frame', int(thresh),             255,    nothing)
-    cv2.createTrackbar('Threshold B', 'frame', int(threshB),            255,    nothing)
+    cv2.createTrackbar('Threshold',   'Integer selection', int(thresh),             255,    nothing)
+    cv2.createTrackbar('Threshold B', 'Decimal selection', int(threshB),            255,    nothing)
+    
     cv2.createTrackbar('Size',        'frame', int(box_size),           100,    nothing)
     cv2.createTrackbar('Size B',      'frame', int(box_sizeB),          100,    nothing)
     cv2.createTrackbar('Erode',       'frame', int(erosion_iters),      4,      nothing)
@@ -261,20 +262,28 @@ if __name__ == '__main__':
         size =  cv2.getTrackbarPos('Size',   'frame')
         sizeB = cv2.getTrackbarPos('Size B', 'frame')
         
+        #set min Size
+        if size <10:
+            size = 10
+        if sizeB <10:
+            sizeB = 10
+
         display_inter   = getSelection(start_x, start_y, size)
         display_decimal = getSelection(start_x2, start_y2, sizeB)
 
         #preprocess Selection
-        display_inter   = preprocessImage(display_inter, 'Threshold')
+        display_inter   = preprocessImage(display_inter, 'Threshold',    'Integer selection')
+        display_decimal = preprocessImage(display_decimal,'Threshold B', 'Decimal selection')
+        
         cv2.imshow('Integer selection', display_inter)
-
-        display_decimal = preprocessImage(display_decimal,'Threshold B')
         cv2.imshow('Decimal selection', display_decimal)
 
+        cv2.resizeWindow('Integer selection', 300, 200)
+        cv2.resizeWindow('Decimal selection', 300, 200)
+
         #Draw Rectangle around selections
-        cv2.rectangle(frame, (start_x -size, start_y -size),   (start_x +size, start_y +size),   (0, 255, 0), 1)    #draw Green box
-        cv2.rectangle(frame, (int(start_x2 -sizeB*float(0.3)), int(start_y2 -sizeB*float(0.4))),\
-                             (int(start_x2 +sizeB*float(0.3)), int(start_y2 +sizeB*float(0.4))), (255, 0, 0), 1)    #draw Green box
+        cv2.rectangle(frame, (start_x -size,   start_y -size),   (start_x +size,   start_y +size),   (0, 255, 0), 1)    #draw Green box
+        cv2.rectangle(frame, (start_x2 -sizeB, start_y2 -sizeB), (start_x2 +sizeB, start_y2 +sizeB), (255, 0, 0), 1)    #draw Green box
 
         origin = [(start_x -size),\
                   (start_y -size)]      #(x,y) Top Left is Origin 
@@ -284,10 +293,10 @@ if __name__ == '__main__':
         #Set up Integer Segment read Points
         SevenSegInt1 = SevenSegCo(size, 0.30,0.15, 0.43,0.32, 0.43,0.70,\
                                         0.30,0.83, 0.17,0.70, 0.21,0.32, 0.30,0.50 )
-        drawSevenSegPoints(origin, size, SevenSegInt1)
-
         SevenSegInt2 = SevenSegCo(size, 0.70,0.15, 0.83,0.32, 0.83,0.70,\
                                         0.70,0.83, 0.55,0.70, 0.59,0.32, 0.73,0.50)
+        
+        drawSevenSegPoints(origin, size, SevenSegInt1)
         drawSevenSegPoints(origin, size, SevenSegInt2)
 
 
