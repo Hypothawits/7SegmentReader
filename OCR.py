@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import tesseract
+import socket
 import numpy as np
 import cv2
 import cv2.cv as cv
@@ -148,7 +149,6 @@ def convertToNumber(X):
     else:
         return 0
 
-
 print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 print "Start Programe"
 
@@ -177,7 +177,17 @@ if __name__ == '__main__':
     # flag to stop opencv
     stopOpenCv = False
     ############################################################################
-    
+    #UDP Set Up
+    UDP_IP = "172.17.2.216"
+    # UDP_IP = "127.0.0.1" #my ip
+    UDP_PORT = 8100
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
+    # sock.sendto("Temperature Recording Started", (UDP_IP, UDP_PORT))
+
+
+
+
+    #############################################################################
     # Video capture
     cap = cv2.VideoCapture(0)
 
@@ -333,13 +343,19 @@ if __name__ == '__main__':
         DecimalBox.drawBoxRectangle()
 
         #Combine integer components and Decimal
+
         temperatureInt = 10*Int1Value + Int2Value + 0.1*DecValue
         
         print "Temperature = %0.1f"%temperatureInt
+        
+        SendArray = [temperatureInt]
+
+        sock.sendto('{"temperatures": %r}'%SendArray, (UDP_IP, UDP_PORT))
+
         cv2.imshow('frame', frame)
 
 
-        c = cv.WaitKey(20)
+        c = cv.WaitKey(1000)
 
         if c == "q":
             break
