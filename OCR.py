@@ -79,21 +79,13 @@ def ConfigSectionMap(section):
             dict1[option] = None
     return dict1
 
-def SaveImage(event):
-    global display_inter
-    params = list()
-    params.append(cv.CV_IMWRITE_PNG_COMPRESSION)
-    params.append(8)
-    filename = datetime.datetime.now().strftime('%y%m%d%H%M%S_%f') + ".png"
-    cv2.imwrite(filename, display_inter, params)
-
 def OnClose(event):
     global stopOpenCv
     stopOpenCv = True
 
 def SaveData():
     try:
-        print display_inter
+        print display_int1
     except:
         print "could print display inter"
     print "Data Saved (Not Really)"
@@ -119,57 +111,17 @@ def getSelection(startX, startY, size):
     selection = frame[startY - size:(startY + size), startX - size:(startX + size)]
     return selection
 
-def drawPoint(origin, size, offset):
-
-    cv2.circle(frame, (origin[0] + offset[0], origin[1] + offset[1]), 1 , (0, 0, 255), -1)   
-
-def SevenSegCo(size, ax,ay,bx,by,cx,cy,dx,dy,ex,ey,fx,fy,gx,gy):
-    #takes the 'relative' float position and converts to pixel positions
-    #on the selection square
-
-    size = size*2   #length of the Square selection
-
-    #convert to pixel position on selection (x, y)
-    A = [int(size*float(ax)),int(size*float(ay))]
-    B = [int(size*float(bx)),int(size*float(by))]
-    C = [int(size*float(cx)),int(size*float(cy))]
-    D = [int(size*float(dx)),int(size*float(dy))]
-    E = [int(size*float(ex)),int(size*float(ey))]
-    F = [int(size*float(fx)),int(size*float(fy))]
-    G = [int(size*float(gx)),int(size*float(gy))]
-
-    #return list of cooridantes
-    SevenSeg = [A,B,C,D,E,F,G]
-    return SevenSeg
-
-def drawSevenSegPoints(origin, size, SevenSeg):
-    A = SevenSeg[0]
-    B = SevenSeg[1]
-    C = SevenSeg[2]
-    D = SevenSeg[3]
-    E = SevenSeg[4]
-    F = SevenSeg[5]
-    G = SevenSeg[6]
-
-    drawPoint(origin, size, A)
-    drawPoint(origin, size, B)
-    drawPoint(origin, size, C)
-    drawPoint(origin, size, D)
-    drawPoint(origin, size, E)
-    drawPoint(origin, size, F)
-    drawPoint(origin, size, G)
-
-def getValueList(SevenSeg, display_inter):
+def getValueList(SevenSeg, display_int1):
     #get the value (1/0) for each of the 7 segments
     valueList = []
     #Get A value
     for Seg in SevenSeg:
-        valueList.append(SegValue(Seg, display_inter))
+        valueList.append(SegValue(Seg, display_int1))
     return valueList
 
-def SegValue(Seg, display_inter):
+def SegValue(Seg, display_int1):
     x,y = Seg[0],Seg[1]
-    if display_inter[y,x].any(): #if any value not zero, white pixel
+    if display_int1[y,x].any(): #if any value not zero, white pixel
         return 0
     else:
         return 1
@@ -208,17 +160,22 @@ if __name__ == '__main__':
     ############################################################################
     # Pre process params
     thresh              = ConfigSectionMap("PREPROCESS")['threshold']
+    threshB             = ConfigSectionMap("PREPROCESS")['threshold']
+    threshC             = ConfigSectionMap("PREPROCESS")['threshold']
     erosion_iters       = ConfigSectionMap("PREPROCESS")['erode']
     most_common_filter  = ConfigSectionMap("POSPROCESS")['filter']
     box_size            = ConfigSectionMap("PREPROCESS")['size']
     box_sizeB           = ConfigSectionMap("PREPROCESS")['sizeb']
-    threshB             = ConfigSectionMap("PREPROCESS")['threshold']
+   
 
     start_x, start_y   = 100, 100,
     start_x2, start_y2 = 100, 100,
+    start_x3, start_y3 = 100, 100,
     
     drawing     = False  # true if mouse is pressed
-    draw_second = False  #toggles selection drawing 
+    draw2 = False  #toggles selection drawing 
+    draw3 = False
+
 
     # flag to stop opencv
     stopOpenCv = False
@@ -237,61 +194,78 @@ if __name__ == '__main__':
     # mouse callback function
     def draw_rectangle(event, x, y, flags, param):
         global start_x, start_y, drawing, expected_value        
-        global start_x2, start_y2, draw_second
+        global start_x2, start_y2, draw2, start_x3, start_y3, draw3
 
         if event == cv2.EVENT_LBUTTONDOWN:
             # menu position
             if y < 40:
                 # menu map
-                if x > 8 and x < 148:
-                    SaveImage(event)
                 if x > 153 and x < 190:
                     OnClose(event)
                 if x > 195 and x < 252:
-                    print "Try read the Screen!"
+                    print "Write a description"
                 if x > 258 and x < 355:
                     SaveData()
-                if x > 375 and x < 460:
-                    draw_second = False                
-                if x > 480 and x < 580:
-                    draw_second = True
+                if x > 380 and x < 420:
+                    # print 'first Int'
+                    draw2 = False
+                    draw3 = False                
+                if x > 426 and x < 462:
+                    # print "second Int"
+                    draw2 = True
+                    draw3 = False
+                if x > 490 and x < 530:
+                    # print "first decimal"
+                    draw2 = False
+                    draw3 = True
+
             else:
                 drawing = True
-                if draw_second == False:
+
+                if (draw2 == False)and(draw3 == False):
                     start_x, start_y = x, y
-                else:
+                elif (draw2 == True)and(draw3 == False):
                     start_x2, start_y2 = x, y
+                else:
+                    start_x3, start_y3 = x, y
 
         elif event == cv2.EVENT_LBUTTONUP:
             drawing = False                  
 
         elif event == cv2.EVENT_MOUSEMOVE and drawing:
-            if draw_second == False:
+            if (draw2 == False)and(draw3 == False):
                 start_x, start_y = x, y
-            else:
+            elif (draw2 == True)and(draw3 == False):
                 start_x2, start_y2 = x, y
+            else:
+                start_x3, start_y3 = x, y
 
 
     # show main window
     cv2.namedWindow('frame')
 
     # Show blank image at first
-    cv2.namedWindow('Integer selection')
-    display_inter   = np.zeros((200, 200, 3), np.uint8)
-    cv2.imshow('frame', display_inter)
+    cv2.namedWindow('Int1 selection')
+    display_int1   = np.zeros((200, 200, 3), np.uint8)
+    cv2.imshow('frame', display_int1)
+
+    cv2.namedWindow('Int2 selection')
+    display_int2   = np.zeros((200, 200, 3), np.uint8)
+    cv2.imshow('frame', display_int2)
 
     cv2.namedWindow('Decimal selection')
     display_decimal   = np.zeros((200, 200, 3), np.uint8)
     cv2.imshow('frame', display_decimal)
 
     # GUI
-    cv2.createTrackbar('Threshold',   'Integer selection', int(thresh),             255,    nothing)
-    cv2.createTrackbar('Threshold B', 'Decimal selection', int(threshB),            255,    nothing)
-    
-    cv2.createTrackbar('Size',        'frame', int(box_size),           100,    nothing)
-    cv2.createTrackbar('Size B',      'frame', int(box_sizeB),          100,    nothing)
-    cv2.createTrackbar('Erode',       'frame', int(erosion_iters),      4,      nothing)
-    cv2.createTrackbar('Filter',      'frame', int(most_common_filter), 10,     nothing)
+    cv2.createTrackbar('Threshold', 'Int1 selection',    int(thresh),  255, nothing)
+    cv2.createTrackbar('Threshold', 'Int2 selection',    int(threshB), 255, nothing)
+    cv2.createTrackbar('Threshold', 'Decimal selection', int(threshC), 255, nothing)
+
+    cv2.createTrackbar('Size',   'frame', int(box_size),           100,  nothing)
+    cv2.createTrackbar('Size B', 'frame', int(box_sizeB),          100,  nothing)
+    cv2.createTrackbar('Erode',  'frame', int(erosion_iters),      4,    nothing)
+    cv2.createTrackbar('Filter', 'frame', int(most_common_filter), 10,   nothing)
     
     # menu image
     menu = cv2.imread("menu.png")
@@ -303,8 +277,9 @@ if __name__ == '__main__':
 
     #create Boxes
     DecimalBox  = segBox((255,0,0))
+    IntBox1     = segBox((0,255,0))
+    IntBox2     = segBox((0,222,0))
     
-
 #Main Loop
     while True:
         # Capture frame-by-frame, Frame is the whole image captured
@@ -320,75 +295,55 @@ if __name__ == '__main__':
     # ROI Regions of Interest
     ########################################################################
         #get Sizes from sliders
-        size =  cv2.getTrackbarPos('Size',   'frame')
-        # sizeB = cv2.getTrackbarPos('Size B', 'frame')
+        # size =  cv2.getTrackbarPos('Size',   'frame')
+      #IntBox1
+        IntBox1.size = cv2.getTrackbarPos('Size',   'frame')
+        IntBox1.location = [start_x,start_y]
 
+        IntBox1.selection = getSelection(IntBox1.location[0], IntBox1.location[1], IntBox1.size)
+        IntBox1.selection = preprocessImage(IntBox1.selection, 'Threshold', 'Int1 selection')
+        cv2.imshow('Int1 selection', IntBox1.selection)
+        cv2.resizeWindow('Int1 selection', 300, 200)
+
+        Int1ValueList = getValueList(IntBox1.segCoordinates,IntBox1.selection)
+        Int1Value = float(convertToNumber(Int1ValueList))
+      
+      #IntBox1
+        IntBox2.size = cv2.getTrackbarPos('Size',   'frame')
+        IntBox2.location = [start_x2,start_y2]
+
+        IntBox2.selection = getSelection(IntBox2.location[0], IntBox2.location[1], IntBox2.size)
+        IntBox2.selection = preprocessImage(IntBox2.selection, 'Threshold', 'Int2 selection')
+        cv2.imshow('Int2 selection', IntBox2.selection)
+        cv2.resizeWindow('Int2 selection', 300, 200)
+
+        Int2ValueList = getValueList(IntBox2.segCoordinates,IntBox2.selection)
+        Int2Value = float(convertToNumber(Int2ValueList))
+
+      #Decimal Box
         DecimalBox.size = cv2.getTrackbarPos('Size B', 'frame')
-        DecimalBox.location = [start_x2, start_y2]
+        DecimalBox.location = [start_x3, start_y3]
         
         DecimalBox.selection = getSelection(DecimalBox.location[0], DecimalBox.location[1], DecimalBox.size)
-        DecimalBox.selection = preprocessImage(DecimalBox.selection, 'Threshold B', 'Decimal selection')
+        DecimalBox.selection = preprocessImage(DecimalBox.selection, 'Threshold', 'Decimal selection')
         cv2.imshow('Decimal selection', DecimalBox.selection)
         cv2.resizeWindow('Decimal selection', 300, 200)
         
-        DecimalBox.drawBoxRectangle()
-
         DecValueList = getValueList(DecimalBox.segCoordinates,DecimalBox.selection)
         DecValue  = float(convertToNumber(DecValueList))
 
-        #set min Size
-        if size <10:
-            size = 10
-        # if sizeB <10:
-        #     sizeB = 10
-
-        display_inter   = getSelection(start_x, start_y, size)
-        # display_decimal = getSelection(start_x2, start_y2, sizeB)
-
-        #preprocess Selection
-        display_inter   = preprocessImage(display_inter, 'Threshold',    'Integer selection')
-        # display_decimal = preprocessImage(display_decimal,'Threshold B', 'Decimal selection')
-        
-        cv2.imshow('Integer selection', display_inter)
-        # cv2.imshow('Decimal selection', display_decimal)
-
-        cv2.resizeWindow('Integer selection', 300, 200)
-        # cv2.resizeWindow('Decimal selection', 300, 200)
-
-        #Draw Rectangle around selections
-        cv2.rectangle(frame, (start_x -size,   start_y -size),   (start_x +size,   start_y +size),   (0, 255, 0), 1)    #draw Green box
-        # cv2.rectangle(frame, (start_x2 -sizeB, start_y2 -sizeB), (start_x2 +sizeB, start_y2 +sizeB), (255, 0, 0), 1)    #draw Bluw box
-
-        origin = [(start_x -size),(start_y -size)]        #(x,y) Top Left is Origin 
-        # originB = [(start_x2 -sizeB),(start_y2 -sizeB)]   #(x,y) Top Left is Origin 
-        
-        #Set up Integer Segment read Points
-        SevenSegInt1 = SevenSegCo(size, 0.30,0.15, 0.43,0.32, 0.43,0.70,\
-                                        0.30,0.83, 0.17,0.70, 0.21,0.32, 0.30,0.50 )
-        SevenSegInt2 = SevenSegCo(size, 0.70,0.15, 0.83,0.32, 0.83,0.70,\
-                                        0.70,0.83, 0.55,0.70, 0.59,0.32, 0.73,0.50)
-        # SevenSegDecimal = SevenSegCo(sizeB, 0.5,0.15, 0.65,0.25, 0.63,0.65,\
-        #                                 0.46,0.85, 0.35,0.65, 0.36,0.25, 0.5,0.5)
-
-        drawSevenSegPoints(origin, size, SevenSegInt1)
-        drawSevenSegPoints(origin, size, SevenSegInt2)
-        # drawSevenSegPoints(originB, sizeB, SevenSegDecimal)
-
-        #Read Integer Values
-        Int1ValueList = getValueList(SevenSegInt1,display_inter)
-        Int2ValueList = getValueList(SevenSegInt2,display_inter)
-        # DecValueList  = getValueList(SevenSegDecimal,display_decimal)
-
-        #Convert to Number
-        Int1Value = float(convertToNumber(Int1ValueList))
-        Int2Value = float(convertToNumber(Int2ValueList))  
-        # DecValue  = float(convertToNumber(DecValueList))
+       #Draw Rectangle and Location Points
+        IntBox1.drawBoxRectangle()
+        IntBox2.drawBoxRectangle()
+        DecimalBox.drawBoxRectangle()
 
         #Combine integer components and Decimal
         temperatureInt = 10*Int1Value + Int2Value + 0.1*DecValue
-
+        
         print "Temperature = %0.1f"%temperatureInt
         cv2.imshow('frame', frame)
+
+
 
 
 
@@ -404,4 +359,4 @@ if __name__ == '__main__':
     cv2.destroyAllWindows()
 
 #find size of selctions
-# height,  width,  channel_1 = display_inter.shape
+# height,  width,  channel_1 = display_int1.shape
