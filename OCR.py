@@ -319,28 +319,14 @@ if __name__ == '__main__':
 
     # show main window
     cv2.namedWindow('frame')
-    cv2.createTrackbar('Erode', 'frame', int(erosion_iters),      4,    nothing)
+    cv2.createTrackbar('Erode', 'frame', int(erosion_iters),       4,   nothing)
     cv2.createTrackbar('Filter','frame', int(most_common_filter), 10,   nothing)
 
     # Create selection frames
-    Int_selection_1 = SelectionFrame('Int1 selection', thresh, box_size)
-    # cv2.namedWindow('Int1 selection')
-    # display_int1   = np.zeros((200, 200, 3), np.uint8)
-    # cv2.createTrackbar('Threshold', 'Int1 selection',    int(thresh),   255, nothing)
-    # cv2.createTrackbar('Size',      'Int1 selection',    int(box_size), 100,  nothing)
-    # cv2.imshow('frame', display_int1)
+    Int_selection_1 = SelectionFrame('Int1 selection',    thresh,  box_size)
+    Int_selection_2 = SelectionFrame('Int2 selection',    threshB, box_sizeB)
+    Dec_selection   = SelectionFrame('Decimal selection', threshC, box_sizeC)
 
-    cv2.namedWindow('Int2 selection')
-    display_int2   = np.zeros((200, 200, 3), np.uint8)
-    cv2.createTrackbar('Threshold', 'Int2 selection',    int(threshB),  255, nothing)
-    cv2.createTrackbar('Size',      'Int2 selection',    int(box_sizeC),100,  nothing)
-    cv2.imshow('frame', display_int2)
-
-    cv2.namedWindow('Decimal selection')
-    display_decimal   = np.zeros((200, 200, 3), np.uint8)
-    cv2.createTrackbar('Threshold', 'Decimal selection', int(threshC),  255, nothing)
-    cv2.createTrackbar('Size',      'Decimal selection', int(box_sizeC),100,  nothing)
-    cv2.imshow('frame', display_decimal)
 
     # GUI
     
