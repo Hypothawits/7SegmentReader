@@ -10,64 +10,6 @@ from   time import strftime
 from   collections import Counter
 import ConfigParser
 
-class segBox:
-    #Segment relative locations. Class Variables
-    ax,ay = 0.50, 0.15
-    bx,by = 0.65, 0.25
-    cx,cy = 0.63, 0.65
-    dx,dy = 0.46, 0.85
-    ex,ey = 0.35, 0.65
-    fx,fy = 0.36, 0.25
-    gx,gy = 0.50, 0.50
-
-    selection      = []
-    segCoordinates = []
-    size     = 10
-    location = []
-    
-    
-
-    def __init__(self, colour):
-        self.colour = colour
-
-    def drawBoxRectangle(self):
-        origin   = [self.location[0] - self.size, self.location[1] - self.size]
-
-        #convert to pixel location within box (top left being origin)
-        self.A = [int(self.size*2*float(self.ax)),int(self.size*2*float(self.ay))]
-        self.B = [int(self.size*2*float(self.bx)),int(self.size*2*float(self.by))]
-        self.C = [int(self.size*2*float(self.cx)),int(self.size*2*float(self.cy))]
-        self.D = [int(self.size*2*float(self.dx)),int(self.size*2*float(self.dy))]
-        self.E = [int(self.size*2*float(self.ex)),int(self.size*2*float(self.ey))]
-        self.F = [int(self.size*2*float(self.fx)),int(self.size*2*float(self.fy))]
-        self.G = [int(self.size*2*float(self.gx)),int(self.size*2*float(self.gy))]
-
-        self.segCoordinates = [self.A,self.B,self.C,self.D,self.E,self.F,self.G]
-        
-        #draw rectangle arround selection
-        cv2.rectangle(frame, (self.location[0] -self.size, self.location[1] -self.size),\
-                             (self.location[0] +self.size, self.location[1] +self.size),\
-                              self.colour, 1) 
-
-        #draw segment indicator points
-        cv2.circle(frame, (origin[0] + self.A[0], origin[1] + self.A[1]), 1 , (0, 0, 255), -1)
-        cv2.circle(frame, (origin[0] + self.B[0], origin[1] + self.B[1]), 1 , (0, 0, 255), -1)
-        cv2.circle(frame, (origin[0] + self.C[0], origin[1] + self.C[1]), 1 , (0, 0, 255), -1)
-        cv2.circle(frame, (origin[0] + self.D[0], origin[1] + self.D[1]), 1 , (0, 0, 255), -1)
-        cv2.circle(frame, (origin[0] + self.E[0], origin[1] + self.E[1]), 1 , (0, 0, 255), -1)
-        cv2.circle(frame, (origin[0] + self.F[0], origin[1] + self.F[1]), 1 , (0, 0, 255), -1)
-        cv2.circle(frame, (origin[0] + self.G[0], origin[1] + self.G[1]), 1 , (0, 0, 255), -1)
-        
-        cv2.imshow('frame', frame)
-
-class SelectionFrame:
-    def __init__(self, name, thresh_variable, box_size_variable ):
-        self.name = name
-        cv2.namedWindow(name)
-        self.display   = np.zeros((200, 200, 3), np.uint8)
-        cv2.createTrackbar('Threshold', name,    int(thresh_variable),   255, nothing)
-        cv2.createTrackbar('Size',      name,    int(box_size_variable), 100,  nothing)
-        cv2.imshow('frame', self.display)
 
 def ConfigSectionMap(section):
     global Config
@@ -91,9 +33,9 @@ def SaveData():
 
     print "Doesn't Save Yet" 
 
-def imageIdentify(Box, Selection, x,y):
+def imageIdentify(Box, Selection):
     Box.size     = cv2.getTrackbarPos('Size',   Selection)
-    Box.location = [x,y]
+    # Box.location = [x,y]
 
     if Box.size <10:
         Box.size = 10
@@ -172,6 +114,72 @@ def convertToNumber(X):
     else:
         return 0
 
+class segBox:
+    #Segment relative locations. Class Variables
+    ax,ay = 0.50, 0.15
+    bx,by = 0.65, 0.25
+    cx,cy = 0.63, 0.65
+    dx,dy = 0.46, 0.85
+    ex,ey = 0.35, 0.65
+    fx,fy = 0.36, 0.25
+    gx,gy = 0.50, 0.50
+
+    selection      = []
+    segCoordinates = []
+    size     = 10
+    location = [200, 200]
+    
+    
+
+    def __init__(self, colour):
+        self.colour = colour
+
+    def drawBoxRectangle(self):
+        origin   = [self.location[0] - self.size, self.location[1] - self.size]
+
+        #convert to pixel location within box (top left being origin)
+        self.A = [int(self.size*2*float(self.ax)),int(self.size*2*float(self.ay))]
+        self.B = [int(self.size*2*float(self.bx)),int(self.size*2*float(self.by))]
+        self.C = [int(self.size*2*float(self.cx)),int(self.size*2*float(self.cy))]
+        self.D = [int(self.size*2*float(self.dx)),int(self.size*2*float(self.dy))]
+        self.E = [int(self.size*2*float(self.ex)),int(self.size*2*float(self.ey))]
+        self.F = [int(self.size*2*float(self.fx)),int(self.size*2*float(self.fy))]
+        self.G = [int(self.size*2*float(self.gx)),int(self.size*2*float(self.gy))]
+
+        self.segCoordinates = [self.A,self.B,self.C,self.D,self.E,self.F,self.G]
+        
+        #draw rectangle arround selection
+        cv2.rectangle(frame, (self.location[0] -self.size, self.location[1] -self.size),\
+                             (self.location[0] +self.size, self.location[1] +self.size),\
+                              self.colour, 1) 
+
+        #draw segment indicator points
+        cv2.circle(frame, (origin[0] + self.A[0], origin[1] + self.A[1]), 1 , (0, 0, 255), -1)
+        cv2.circle(frame, (origin[0] + self.B[0], origin[1] + self.B[1]), 1 , (0, 0, 255), -1)
+        cv2.circle(frame, (origin[0] + self.C[0], origin[1] + self.C[1]), 1 , (0, 0, 255), -1)
+        cv2.circle(frame, (origin[0] + self.D[0], origin[1] + self.D[1]), 1 , (0, 0, 255), -1)
+        cv2.circle(frame, (origin[0] + self.E[0], origin[1] + self.E[1]), 1 , (0, 0, 255), -1)
+        cv2.circle(frame, (origin[0] + self.F[0], origin[1] + self.F[1]), 1 , (0, 0, 255), -1)
+        cv2.circle(frame, (origin[0] + self.G[0], origin[1] + self.G[1]), 1 , (0, 0, 255), -1)
+        
+        cv2.imshow('frame', frame)
+
+class SelectionFrame:
+    global Config
+    Config = ConfigParser.ConfigParser()
+    Config.read("./config.ini")
+
+    thresh   = ConfigSectionMap("PREPROCESS")['threshold']
+    box_size = ConfigSectionMap("PREPROCESS")['size']
+
+    def __init__(self, name):
+        self.name = name
+        cv2.namedWindow(name)
+        self.display   = np.zeros((200, 200, 3), np.uint8)
+        cv2.createTrackbar('Threshold', name,    int(self.thresh),   255, nothing)
+        cv2.createTrackbar('Size',      name,    int(self.box_size), 100,  nothing)
+        cv2.imshow('frame', self.display)
+
 print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 print "Start Programe"
 
@@ -180,16 +188,8 @@ if __name__ == '__main__':
     Config.read("./config.ini")
     ############################################################################
     # Pre process params
-    thresh              = ConfigSectionMap("PREPROCESS")['threshold']
-    threshB             = ConfigSectionMap("PREPROCESS")['threshold']
-    threshC             = ConfigSectionMap("PREPROCESS")['threshold']
     erosion_iters       = ConfigSectionMap("PREPROCESS")['erode']
     most_common_filter  = ConfigSectionMap("POSPROCESS")['filter']
-    box_size            = ConfigSectionMap("PREPROCESS")['size']
-    box_sizeB           = ConfigSectionMap("PREPROCESS")['sizeb']
-    box_sizeC           = ConfigSectionMap("PREPROCESS")['sizec']
-
-   
 
     motor_x, motor_y   = 100, 100,
     motor_x2, motor_y2 = 100, 100,
@@ -292,48 +292,73 @@ if __name__ == '__main__':
 
             else:
                 drawing = True
-                if Row1:
+                if Row1:    #Motor Temp
                     if (Draw_FIntM):
-                        motor_x, motor_y = x, y
+                        Motor_IntBox1.location = [x, y]
                     elif (Draw_SIntM):
-                        motor_x2, motor_y2 = x, y
+                        Motor_IntBox2.location = [x, y]
                     elif (Draw_FDecM):
-                        motor_x3, motor_y3 = x, y
-                else:
-                    print "Button Selection Error"
+                        Motor_DecimalBox.location = [x, y]
+                if Row2:    #Room Temp
+                    if (Draw_FIntR):
+                        Room_IntBox1.location = [x, y]
+                    elif (Draw_SIntR):
+                        Room_IntBox2.location = [x, y]
+                    elif (Draw_FDecR):
+                        Room_DecimalBox.location = [x, y]
+                if Row3:    #Room umidity
+                    if (Draw_FIntH):
+                        Humidity_IntBox1.location = [x, y]
+                    elif (Draw_SIntH):
+                        Humidity_IntBox2.location = [x, y]
+                    elif (Draw_FDecH):
+                        Humidity_DecimalBox.location = [x, y]
 
         elif event == cv2.EVENT_LBUTTONUP:
             drawing = False                  
 
         elif event == cv2.EVENT_MOUSEMOVE and drawing:
-            if Row1:
+            if Row1:    #Motor Temp
                 if (Draw_FIntM):
-                    motor_x, motor_y = x, y
+                    Motor_IntBox1.location = [x, y]
                 elif (Draw_SIntM):
-                    motor_x2, motor_y2 = x, y
+                    Motor_IntBox2.location = [x, y]
                 elif (Draw_FDecM):
-                    motor_x3, motor_y3 = x, y
-            else:
-                print "Button Selection Error"
+                    Motor_DecimalBox.location = [x, y]
+            if Row2:    #Room Temp
+                if (Draw_FIntR):
+                    Room_IntBox1.location = [x, y]
+                elif (Draw_SIntR):
+                    Room_IntBox2.location = [x, y]
+                elif (Draw_FDecR):
+                    Room_DecimalBox.location = [x, y]
+            if Row3:    #Room umidity
+                if (Draw_FIntH):
+                    Humidity_IntBox1.location = [x, y]
+                elif (Draw_SIntH):
+                    Humidity_IntBox2.location = [x, y]
+                elif (Draw_FDecH):
+                    Humidity_DecimalBox.location = [x, y]
 
-
+    # GUI and windows
     # show main window
     cv2.namedWindow('frame')
     cv2.createTrackbar('Erode', 'frame', int(erosion_iters),       4,   nothing)
     cv2.createTrackbar('Filter','frame', int(most_common_filter), 10,   nothing)
 
     # Create selection frames
-    Int_selection_1 = SelectionFrame('Int1 selection',    thresh,  box_size)
-    Int_selection_2 = SelectionFrame('Int2 selection',    threshB, box_sizeB)
-    Dec_selection   = SelectionFrame('Decimal selection', threshC, box_sizeC)
+    Int_selection_1_motor = SelectionFrame('Motor_Int1')
+    Int_selection_2_motor = SelectionFrame('Motor_Int2')
+    Dec_selection_motor   = SelectionFrame('Motor_Decimal')
 
+    # Int_selection_1_room = SelectionFrame('Room_Int1')
+    # Int_selection_2_room = SelectionFrame('Room_Int2')
+    # Dec_selection_room   = SelectionFrame('Room_Decimal')
 
-    # GUI
-    
-    
-    
-    
-    
+    # Int_selection_1_Humidity = SelectionFrame('Humidity_Int1')
+    # Int_selection_2_Humidity = SelectionFrame('Humidity_Int2')
+    # Dec_selection_Humidity   = SelectionFrame('Humidity_Decimal')
+
     
     # menu image
     menu = cv2.imread("menu.png")
@@ -344,9 +369,19 @@ if __name__ == '__main__':
     decimal_List = []
 
     #create Boxes
-    DecimalBox  = segBox((255,0,0))
-    IntBox1     = segBox((0,255,0))
-    IntBox2     = segBox((0,222,0))
+    Motor_IntBox1       = segBox((0,255,0))
+    Motor_IntBox2       = segBox((0,245,0))
+    Motor_DecimalBox    = segBox((0,235,0))
+
+    Room_IntBox1        = segBox((0,185,255))
+    Room_IntBox2        = segBox((0,175,245))
+    Room_DecimalBox     = segBox((0,165,235))
+
+    Humidity_IntBox1    = segBox((255,185,0))
+    Humidity_IntBox2    = segBox((245,175,0))
+    Humidity_DecimalBox = segBox((235,165,0))
+
+
     
 #Main Loop
     while True:
@@ -363,24 +398,45 @@ if __name__ == '__main__':
     # ROI Regions of Interest
     ########################################################################
       #Temperature Motor
-        Int1Value = imageIdentify(IntBox1,    'Int1 selection',    motor_x,motor_y)
-        Int2Value = imageIdentify(IntBox2,    'Int2 selection',    motor_x2,motor_y2)
-        DecValue  = imageIdentify(DecimalBox, 'Decimal selection', motor_x3, motor_y3)
+        Int1Motor = imageIdentify(Motor_IntBox1,    'Motor_Int1')
+        Int2Motor = imageIdentify(Motor_IntBox2,    'Motor_Int2')
+        DecMotor  = imageIdentify(Motor_DecimalBox, 'Motor_Decimal')
+
+      #Temperature Room
+      #   Int1Room = imageIdentify(Room_IntBox1,    'Room_Int1')
+      #   Int2Room = imageIdentify(Room_IntBox2,    'Room_Int2')
+      #   DecRoom  = imageIdentify(Room_DecimalBox, 'Room_Decimal')
+
+      #Humidity
+      #   Int1Humidity = imageIdentify(Humidity_IntBox1,    'Humidity_Int1')
+      #   Int2Humidity = imageIdentify(Humidity_IntBox2,    'Humidity_Int2')
+      #   DecHumidity  = imageIdentify(Humidity_DecimalBox, 'Humidity_Decimal')
 
        #Draw Rectangle and Location Points
         #must be done after the selections are made, 
         #or the box and points will appear in the image!
-        IntBox1.drawBoxRectangle()
-        IntBox2.drawBoxRectangle()
-        DecimalBox.drawBoxRectangle()
+        Motor_IntBox1.drawBoxRectangle()
+        Motor_IntBox2.drawBoxRectangle()
+        Motor_DecimalBox.drawBoxRectangle()
+        
+        # Room_IntBox1.drawBoxRectangle()
+        # Room_IntBox2.drawBoxRectangle()
+        # Room_DecimalBox.drawBoxRectangle()
+        
+        # Humidity_IntBox1.drawBoxRectangle()
+        # Humidity_IntBox2.drawBoxRectangle()
+        # Humidity_DecimalBox.drawBoxRectangle()
 
         #Combine integer components and Decimal
 
-        temperatureInt = 10*Int1Value + Int2Value + 0.1*DecValue
+        temperatureMotor = 10*Int1Motor + Int2Motor + 0.1*DecMotor
+        # temperatureRoom  = 10*Int1Room  + Int2Room  + 0.1*DecRoom
+        # humidityRoom     = 10*Int1Humidity + Int2Humidity + 0.1*DecHumidity
         
-        print "Temperature = %0.1f"%temperatureInt
+        # print "Motor Temp: %0.1f,  Room Temp: %0.1f,  Humidity: %0.1f"%(temperatureMotor, temperatureRoom, humidityRoom)
+        print "Motor Temp: %0.1f"%(temperatureMotor)
         
-        SendArray = [temperatureInt]
+        SendArray = [temperatureMotor]
 
         sock.sendto('{"temperatures": %r}'%SendArray, (UDP_IP, UDP_PORT))
 
