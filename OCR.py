@@ -33,10 +33,6 @@ class segBox:
     def drawBoxRectangle(self):
         origin   = [self.location[0] - self.size, self.location[1] - self.size]
 
-        #Set Min Size
-        if self.size <10:
-            self.size = 10
-
         #convert to pixel location within box (top left being origin)
         self.A = [int(self.size*2*float(self.ax)),int(self.size*2*float(self.ay))]
         self.B = [int(self.size*2*float(self.bx)),int(self.size*2*float(self.by))]
@@ -64,6 +60,15 @@ class segBox:
         
         cv2.imshow('frame', frame)
 
+class SelectionFrame:
+    def __init__(self, name, thresh_variable, box_size_variable ):
+        self.name = name
+        cv2.namedWindow(name)
+        self.display   = np.zeros((200, 200, 3), np.uint8)
+        cv2.createTrackbar('Threshold', name,    int(thresh_variable),   255, nothing)
+        cv2.createTrackbar('Size',      name,    int(box_size_variable), 100,  nothing)
+        cv2.imshow('frame', self.display)
+
 def ConfigSectionMap(section):
     global Config
     dict1 = {}
@@ -83,11 +88,26 @@ def OnClose(event):
     stopOpenCv = True
 
 def SaveData():
-    try:
-        print display_int1
-    except:
-        print "could print display inter"
-    print "Data Saved (Not Really)"
+
+    print "Doesn't Save Yet" 
+
+def imageIdentify(Box, Selection, x,y):
+    Box.size     = cv2.getTrackbarPos('Size',   Selection)
+    Box.location = [x,y]
+
+    if Box.size <10:
+        Box.size = 10
+
+    #get and process the selection
+    Box.selection = getSelection(Box.location[0], Box.location[1], Box.size)
+    Box.selection = preprocessImage(Box.selection, 'Threshold', Selection)
+    cv2.imshow(Selection, Box.selection)
+    cv2.resizeWindow(Selection, 300, 200)
+
+    #convert image to number
+    ValueList = getValueList(Box.segCoordinates,Box.selection)
+    Value     = float(convertToNumber(ValueList))
+    return Value
 
 def getthresholdedimg(hsv):
     yellow = cv2.inRange(hsv, np.array((20, 100, 100)), np.array((30, 255, 255)))
@@ -120,10 +140,13 @@ def getValueList(SevenSeg, display_int1):
 
 def SegValue(Seg, display_int1):
     x,y = Seg[0],Seg[1]
-    if display_int1[y,x].any(): #if any value not zero, white pixel
+    try:
+        if display_int1[y,x].any(): #if any value not zero, white pixel
+            return 0
+        else:
+            return 1
+    except:
         return 0
-    else:
-        return 1
 
 def convertToNumber(X):
     if X == [1,1,1,1,1,1,0]:
@@ -164,15 +187,20 @@ if __name__ == '__main__':
     most_common_filter  = ConfigSectionMap("POSPROCESS")['filter']
     box_size            = ConfigSectionMap("PREPROCESS")['size']
     box_sizeB           = ConfigSectionMap("PREPROCESS")['sizeb']
+    box_sizeC           = ConfigSectionMap("PREPROCESS")['sizec']
+
    
 
-    start_x, start_y   = 100, 100,
-    start_x2, start_y2 = 100, 100,
-    start_x3, start_y3 = 100, 100,
+    motor_x, motor_y   = 100, 100,
+    motor_x2, motor_y2 = 100, 100,
+    motor_x3, motor_y3 = 100, 100,
     
     drawing = False  # true if mouse is pressed
-    draw2   = False  
-    draw3   = False
+    Draw_FIntM   = True
+    Draw_SIntM   = False  
+    Draw_FDecM   = False
+    Row1 = True
+    Row2, Row3 = False, False
 
     # flag to stop opencv
     stopOpenCv = False
@@ -184,9 +212,6 @@ if __name__ == '__main__':
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
     # sock.sendto("Temperature Recording Started", (UDP_IP, UDP_PORT))
 
-
-
-
     #############################################################################
     # Video capture
     cap = cv2.VideoCapture(0)
@@ -196,79 +221,133 @@ if __name__ == '__main__':
 
     # mouse callback function
     def draw_rectangle(event, x, y, flags, param):
-        global start_x, start_y, drawing      
-        global start_x2, start_y2, draw2, start_x3, start_y3, draw3
+        global motor_x, motor_y, drawing      
+        global motor_x2, motor_y2, motor_x3, motor_y3 
+        global Draw_FIntM, Draw_SIntM, Draw_FDecM
+        global Draw_FIntR, Draw_SIntR, Draw_FDecR
+        global Draw_FIntH, Draw_SIntH, Draw_FDecH
+        global Row1, Row2, Row3 
 
         if event == cv2.EVENT_LBUTTONDOWN:
             # menu position
             if y < 40:
-                # menu map
-                if x > 153 and x < 190:
+                # menu map, First row Motor Temp
+                Row1 = True
+                Row2,Row3 = False,False
+
+                if x > 3 and x < 40:
                     OnClose(event)
-                if x > 195 and x < 252:
+                if x > 45 and x < 105:
                     print "Write a description"
-                if x > 258 and x < 355:
+                if x > 110 and x < 205:
                     SaveData()
-                if x > 380 and x < 420:
-                    # print 'first Int'
-                    draw2 = False
-                    draw3 = False                
-                if x > 426 and x < 462:
-                    # print "second Int"
-                    draw2 = True
-                    draw3 = False
-                if x > 490 and x < 530:
-                    # print "first decimal"
-                    draw2 = False
-                    draw3 = True
+                if x > 230 and x < 270:
+                    # print "first Int Motor"
+                    Draw_FIntM = True
+                    Draw_SIntM, Draw_FDecM = False,False                
+                if x > 276 and x < 312:
+                    # print "second Int Motor"
+                    Draw_SIntM = True
+                    Draw_FIntM, Draw_FDecM = False,False
+                if x > 340 and x < 380:
+                    # print "first decimal Motor"
+                    Draw_FDecM = True
+                    Draw_FIntM, Draw_SIntM = False,False
+
+            elif (y > 40)and(y < 80):
+                #menu map, Second row Room Temp
+                Row2 = True
+                Row1, Row3 = False, False
+                if x > 230 and x < 270:
+                    print "first Int Room"
+                    Draw_FIntR = True
+                    Draw_SIntR, Draw_FDecR = False,False
+                if x > 276 and x < 312:
+                    print "second Int Room"
+                    Draw_SIntR = True
+                    Draw_FIntR, Draw_FDecR = False,False
+
+                if x > 340 and x < 380:
+                    print "first decimal Room"
+                    Draw_FDecR = True
+                    Draw_FIntR, Draw_SIntR = False,False
+
+            elif (y > 80)and(y < 120):
+                #menu map, Third row Humidity
+                Row3 = True
+                Row1, Row2 = False,False
+                if x > 230 and x < 270:
+                    print "first Int Humidity"
+                    Draw_FIntH = True
+                    Draw_SIntH, Draw_FDecH = False,False
+                if x > 276 and x < 312:
+                    print "second Int Humidity"
+                    Draw_SIntH = True
+                    Draw_FIntH, Draw_FDecH = False,False
+
+                if x > 340 and x < 380:
+                    print "first decimal Humidity"
+                    Draw_FDecH = True
+                    Draw_FIntH, Draw_SIntH = False,False
 
             else:
                 drawing = True
-
-                if (draw2 == False)and(draw3 == False):
-                    start_x, start_y = x, y
-                elif (draw2 == True)and(draw3 == False):
-                    start_x2, start_y2 = x, y
+                if Row1:
+                    if (Draw_FIntM):
+                        motor_x, motor_y = x, y
+                    elif (Draw_SIntM):
+                        motor_x2, motor_y2 = x, y
+                    elif (Draw_FDecM):
+                        motor_x3, motor_y3 = x, y
                 else:
-                    start_x3, start_y3 = x, y
+                    print "Button Selection Error"
 
         elif event == cv2.EVENT_LBUTTONUP:
             drawing = False                  
 
         elif event == cv2.EVENT_MOUSEMOVE and drawing:
-            if (draw2 == False)and(draw3 == False):
-                start_x, start_y = x, y
-            elif (draw2 == True)and(draw3 == False):
-                start_x2, start_y2 = x, y
+            if Row1:
+                if (Draw_FIntM):
+                    motor_x, motor_y = x, y
+                elif (Draw_SIntM):
+                    motor_x2, motor_y2 = x, y
+                elif (Draw_FDecM):
+                    motor_x3, motor_y3 = x, y
             else:
-                start_x3, start_y3 = x, y
+                print "Button Selection Error"
 
 
     # show main window
     cv2.namedWindow('frame')
+    cv2.createTrackbar('Erode', 'frame', int(erosion_iters),      4,    nothing)
+    cv2.createTrackbar('Filter','frame', int(most_common_filter), 10,   nothing)
 
-    # Show blank image at first
-    cv2.namedWindow('Int1 selection')
-    display_int1   = np.zeros((200, 200, 3), np.uint8)
-    cv2.imshow('frame', display_int1)
+    # Create selection frames
+    Int_selection_1 = SelectionFrame('Int1 selection', thresh, box_size)
+    # cv2.namedWindow('Int1 selection')
+    # display_int1   = np.zeros((200, 200, 3), np.uint8)
+    # cv2.createTrackbar('Threshold', 'Int1 selection',    int(thresh),   255, nothing)
+    # cv2.createTrackbar('Size',      'Int1 selection',    int(box_size), 100,  nothing)
+    # cv2.imshow('frame', display_int1)
 
     cv2.namedWindow('Int2 selection')
     display_int2   = np.zeros((200, 200, 3), np.uint8)
+    cv2.createTrackbar('Threshold', 'Int2 selection',    int(threshB),  255, nothing)
+    cv2.createTrackbar('Size',      'Int2 selection',    int(box_sizeC),100,  nothing)
     cv2.imshow('frame', display_int2)
 
     cv2.namedWindow('Decimal selection')
     display_decimal   = np.zeros((200, 200, 3), np.uint8)
+    cv2.createTrackbar('Threshold', 'Decimal selection', int(threshC),  255, nothing)
+    cv2.createTrackbar('Size',      'Decimal selection', int(box_sizeC),100,  nothing)
     cv2.imshow('frame', display_decimal)
 
     # GUI
-    cv2.createTrackbar('Threshold', 'Int1 selection',    int(thresh),  255, nothing)
-    cv2.createTrackbar('Threshold', 'Int2 selection',    int(threshB), 255, nothing)
-    cv2.createTrackbar('Threshold', 'Decimal selection', int(threshC), 255, nothing)
-
-    cv2.createTrackbar('Size',   'frame', int(box_size),           100,  nothing)
-    cv2.createTrackbar('Size B', 'frame', int(box_sizeB),          100,  nothing)
-    cv2.createTrackbar('Erode',  'frame', int(erosion_iters),      4,    nothing)
-    cv2.createTrackbar('Filter', 'frame', int(most_common_filter), 10,   nothing)
+    
+    
+    
+    
+    
     
     # menu image
     menu = cv2.imread("menu.png")
@@ -297,43 +376,10 @@ if __name__ == '__main__':
     ########################################################################
     # ROI Regions of Interest
     ########################################################################
-      #IntBox1
-        IntBox1.size     = cv2.getTrackbarPos('Size',   'frame')
-        IntBox1.location = [start_x,start_y]
-
-        #get and process the selection
-        IntBox1.selection = getSelection(IntBox1.location[0], IntBox1.location[1], IntBox1.size)
-        IntBox1.selection = preprocessImage(IntBox1.selection, 'Threshold', 'Int1 selection')
-        cv2.imshow('Int1 selection', IntBox1.selection)
-        cv2.resizeWindow('Int1 selection', 300, 200)
-
-        #convert image to number
-        Int1ValueList = getValueList(IntBox1.segCoordinates,IntBox1.selection)
-        Int1Value     = float(convertToNumber(Int1ValueList))
-      
-      #IntBox1
-        IntBox2.size = cv2.getTrackbarPos('Size',   'frame')
-        IntBox2.location = [start_x2,start_y2]
-
-        IntBox2.selection = getSelection(IntBox2.location[0], IntBox2.location[1], IntBox2.size)
-        IntBox2.selection = preprocessImage(IntBox2.selection, 'Threshold', 'Int2 selection')
-        cv2.imshow('Int2 selection', IntBox2.selection)
-        cv2.resizeWindow('Int2 selection', 300, 200)
-
-        Int2ValueList = getValueList(IntBox2.segCoordinates,IntBox2.selection)
-        Int2Value     = float(convertToNumber(Int2ValueList))
-
-      #Decimal Box
-        DecimalBox.size     = cv2.getTrackbarPos('Size B', 'frame')
-        DecimalBox.location = [start_x3, start_y3]
-        
-        DecimalBox.selection = getSelection(DecimalBox.location[0], DecimalBox.location[1], DecimalBox.size)
-        DecimalBox.selection = preprocessImage(DecimalBox.selection, 'Threshold', 'Decimal selection')
-        cv2.imshow('Decimal selection', DecimalBox.selection)
-        cv2.resizeWindow('Decimal selection', 300, 200)
-        
-        DecValueList = getValueList(DecimalBox.segCoordinates,DecimalBox.selection)
-        DecValue     = float(convertToNumber(DecValueList))
+      #Temperature Motor
+        Int1Value = imageIdentify(IntBox1,    'Int1 selection',    motor_x,motor_y)
+        Int2Value = imageIdentify(IntBox2,    'Int2 selection',    motor_x2,motor_y2)
+        DecValue  = imageIdentify(DecimalBox, 'Decimal selection', motor_x3, motor_y3)
 
        #Draw Rectangle and Location Points
         #must be done after the selections are made, 
@@ -355,7 +401,7 @@ if __name__ == '__main__':
         cv2.imshow('frame', frame)
 
 
-        c = cv.WaitKey(1000)
+        c = cv.WaitKey(100)
 
         if c == "q":
             break
