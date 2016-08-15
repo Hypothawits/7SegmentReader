@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import tesseract
+# import tesseract
 import socket
 import numpy as np
 import cv2
