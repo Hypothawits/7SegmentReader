@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # import tesseract
 import socket
+import logging
 import numpy as np
 import cv2
 import cv2.cv as cv
@@ -9,6 +10,9 @@ import datetime
 from   time import strftime
 from   collections import Counter
 import ConfigParser
+
+#fix reads zero on change. try, if fail, wait , try again.
+#look for memory leak
 
 
 def ConfigSectionMap(section):
@@ -49,7 +53,13 @@ def imageIdentify(Box, Selection):
     #convert image to number
     ValueList = getValueList(Box.segCoordinates,Box.selection)
     Value     = float(convertToNumber(ValueList))
-    return Value
+    if Value != 404:
+        return Value
+    else:
+        time.sleep(0.01) #wait for change to finish
+        return imageIdentify(Box, Selection)
+
+
 
 def getthresholdedimg(hsv):
     yellow = cv2.inRange(hsv, np.array((20, 100, 100)), np.array((30, 255, 255)))
@@ -112,7 +122,7 @@ def convertToNumber(X):
     if X == [1,1,1,1,0,1,1]:
         return 9
     else:
-        return 0
+        return 404
 
 class segBox:
     #Segment relative locations. Class Variables
@@ -380,9 +390,7 @@ if __name__ == '__main__':
     Humidity_IntBox1    = segBox((255,185,0))
     Humidity_IntBox2    = segBox((245,175,0))
     Humidity_DecimalBox = segBox((235,165,0))
-
-
-    
+ 
 #Main Loop
     while True:
         # Capture frame-by-frame, Frame is the whole image captured
@@ -434,8 +442,9 @@ if __name__ == '__main__':
         # humidityRoom     = 10*Int1Humidity + Int2Humidity + 0.1*DecHumidity
         
         # print "Motor Temp: %0.1f,  Room Temp: %0.1f,  Humidity: %0.1f"%(temperatureMotor, temperatureRoom, humidityRoom)
-        print "Motor Temp: %0.1f"%(temperatureMotor)
-        
+        Timestamp = datetime.datetime.now().strftime('%y%m%d%H%M%S_%f')
+        print "Motor Temp: %0.1f --- "%(temperatureMotor) + Timestamp
+        logging.info('Test')
         SendArray = [temperatureMotor]
 
         sock.sendto('{"temperatures": %r}'%SendArray, (UDP_IP, UDP_PORT))
@@ -443,7 +452,7 @@ if __name__ == '__main__':
         cv2.imshow('frame', frame)
 
 
-        c = cv.WaitKey(100)
+        c = cv.WaitKey(5)
 
         if c == "q":
             break
