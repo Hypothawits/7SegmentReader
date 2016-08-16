@@ -56,7 +56,8 @@ def imageIdentify(Box, Selection):
     if Value != 404:
         return Value
     else:
-        time.sleep(0.01) #wait for change to finish
+        time.sleep(0.1)
+        #Try again
         Box.selection = getSelection(Box.location[0], Box.location[1], Box.size)
         Box.selection = preprocessImage(Box.selection, 'Threshold', Selection)
         cv2.imshow(Selection, Box.selection)
@@ -65,8 +66,10 @@ def imageIdentify(Box, Selection):
         #convert image to number
         ValueList = getValueList(Box.segCoordinates,Box.selection)
         Value     = float(convertToNumber(ValueList))
-        return Value
-
+        if Value != 404:
+            return Value
+        else:
+            return 0
 
 
 def getthresholdedimg(hsv):
@@ -195,7 +198,7 @@ class SelectionFrame:
         cv2.namedWindow(name)
         self.display   = np.zeros((200, 200, 3), np.uint8)
         cv2.createTrackbar('Threshold', name,    int(self.thresh),   255, nothing)
-        cv2.createTrackbar('Size',      name,    int(self.box_size), 100,  nothing)
+        cv2.createTrackbar('Size',      name,    int(self.box_size), 200,  nothing)
         cv2.imshow('frame', self.display)
 
 print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
