@@ -57,7 +57,15 @@ def imageIdentify(Box, Selection):
         return Value
     else:
         time.sleep(0.01) #wait for change to finish
-        return imageIdentify(Box, Selection)
+        Box.selection = getSelection(Box.location[0], Box.location[1], Box.size)
+        Box.selection = preprocessImage(Box.selection, 'Threshold', Selection)
+        cv2.imshow(Selection, Box.selection)
+        cv2.resizeWindow(Selection, 300, 200)
+
+        #convert image to number
+        ValueList = getValueList(Box.segCoordinates,Box.selection)
+        Value     = float(convertToNumber(ValueList))
+        return Value
 
 
 
