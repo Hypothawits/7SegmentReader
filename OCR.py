@@ -52,10 +52,8 @@ def imageIdentify(Box, Selection):
 
     #convert image to number
     ValueList = getValueList(Box.segCoordinates,Box.selection)
-    Value     = float(convertToNumber(ValueList))
+    Value     = convertToNumber(ValueList)
     return Value
-
-
 
 def getthresholdedimg(hsv):
     yellow = cv2.inRange(hsv, np.array((20, 100, 100)), np.array((30, 255, 255)))
@@ -118,7 +116,7 @@ def convertToNumber(X):
     if X == [1,1,1,1,0,1,1]:
         return 9
     else:
-        return 0    #mode is used later to remove false zeros
+        return None
 
 class segBox:
     #Segment relative locations. Class Variables
@@ -185,6 +183,13 @@ class SelectionFrame:
         cv2.createTrackbar('Threshold', name,    int(self.thresh),   255, nothing)
         cv2.createTrackbar('Size',      name,    int(self.box_size), 150,  nothing)
         cv2.imshow('frame', self.display)
+
+# class MappingError(Exception):
+#     def __init__(self, value):
+#         self.value = value
+#     def __str__(self):
+#         return repr(self.value)
+
 
 print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 print "Start Programe"
@@ -404,13 +409,19 @@ if __name__ == '__main__':
         Int1MotorList = []
         Int2MotorList = []
         DecMotorList  = []
-
+        sendData = True
         #get 10 values to
-        for i in range(0,25,+1):
+        for i in range(0,10,+1):
           #Temperature Motor
-            Int1MotorList.append(imageIdentify(Motor_IntBox1,    'Motor_Int1')    )
-            Int2MotorList.append(imageIdentify(Motor_IntBox2,    'Motor_Int2')    )
-            DecMotorList.append( imageIdentify(Motor_DecimalBox, 'Motor_Decimal') )
+            tempx = imageIdentify(Motor_IntBox1,    'Motor_Int1')
+            tempy = imageIdentify(Motor_IntBox2,    'Motor_Int2')
+            tempz = imageIdentify(Motor_DecimalBox, 'Motor_Decimal')
+            if tempx != None:
+                Int1MotorList.append(tempx)          
+            if tempy != None:
+                Int2MotorList.append(tempy)
+            if tempz != None:
+                DecMotorList.append(tempz)
 
           #Temperature Room
           #   Int1Room = imageIdentify(Room_IntBox1,    'Room_Int1')
@@ -423,9 +434,13 @@ if __name__ == '__main__':
           #   DecHumidity  = imageIdentify(Humidity_DecimalBox, 'Humidity_Decimal')
 
         #finds the mode of the List
-        Int1Motor = Counter(Int1MotorList).most_common(1)[0][0]
-        Int2Motor = Counter(Int2MotorList).most_common(1)[0][0]
-        DecMotor  = Counter(DecMotorList).most_common(1)[0][0]
+        try:
+            Int1Motor = Counter(Int1MotorList).most_common(1)[0][0]
+            Int2Motor = Counter(Int2MotorList).most_common(1)[0][0]
+            DecMotor  = Counter(DecMotorList ).most_common(1)[0][0]
+        except:
+            print "Error in Conversion: Empty Lists"
+            sendData = False
 
        #Draw Rectangle and Location Points
         #must be done after the selections are made, 
@@ -442,30 +457,32 @@ if __name__ == '__main__':
         # Humidity_IntBox2.drawBoxRectangle()
         # Humidity_DecimalBox.drawBoxRectangle()
 
-        #Combine integer components and Decimal
+        if sendData:
+            #Combine integer components and Decimal
+            temperatureMotor = float(10*Int1Motor + Int2Motor) + 0.1*float(DecMotor)
+            # temperatureRoom  = 10*Int1Room  + Int2Room  + 0.1*DecRoom
+            # humidityRoom     = 10*Int1Humidity + Int2Humidity + 0.1*DecHumidity
+            
+            # print "Motor Temp: %0.1f,  Room Temp: %0.1f,  Humidity: %0.1f"%(temperatureMotor, temperatureRoom, humidityRoom)
+            Timestamp = datetime.datetime.now().strftime('%y%m%d%H%M%S_%f')
+            print "Motor Temp: %0.1f --- "%(temperatureMotor) + Timestamp
+            
+            #Send Data over network
+            SendArray = [temperatureMotor]
+            sock.sendto('{"temperatures": %r}'%SendArray, (UDP_IP, UDP_PORT))
 
-        temperatureMotor = 10*Int1Motor + Int2Motor + 0.1*DecMotor
-        # temperatureRoom  = 10*Int1Room  + Int2Room  + 0.1*DecRoom
-        # humidityRoom     = 10*Int1Humidity + Int2Humidity + 0.1*DecHumidity
-        
-        # print "Motor Temp: %0.1f,  Room Temp: %0.1f,  Humidity: %0.1f"%(temperatureMotor, temperatureRoom, humidityRoom)
-        Timestamp = datetime.datetime.now().strftime('%y%m%d%H%M%S_%f')
-        print "Motor Temp: %0.1f --- "%(temperatureMotor) + Timestamp
-        logging.info('Test')
-        SendArray = [temperatureMotor]
-
-        sock.sendto('{"temperatures": %r}'%SendArray, (UDP_IP, UDP_PORT))
-
-        cv2.imshow('frame', frame)
-
-
-        c = cv.WaitKey(5)
-
-        if c == "q":
-            break
-        if stopOpenCv:
-            break
+            cv2.imshow('frame', frame)
+            c = cv.WaitKey(500)
+            if c == "q":
+                break
+            if stopOpenCv:
+                break
+        else:
+            cv2.imshow('frame', frame)
+            c = cv.WaitKey(1)
 
     # When everything done, release the capture
     cap.release()
     cv2.destroyAllWindows()
+
+    160816 15:13 25_983000
