@@ -53,23 +53,8 @@ def imageIdentify(Box, Selection):
     #convert image to number
     ValueList = getValueList(Box.segCoordinates,Box.selection)
     Value     = float(convertToNumber(ValueList))
-    if Value != 404:
-        return Value
-    else:
-        time.sleep(0.1)
-        #Try again
-        Box.selection = getSelection(Box.location[0], Box.location[1], Box.size)
-        Box.selection = preprocessImage(Box.selection, 'Threshold', Selection)
-        cv2.imshow(Selection, Box.selection)
-        cv2.resizeWindow(Selection, 300, 200)
+    return Value
 
-        #convert image to number
-        ValueList = getValueList(Box.segCoordinates,Box.selection)
-        Value     = float(convertToNumber(ValueList))
-        if Value != 404:
-            return Value
-        else:
-            return 0
 
 
 def getthresholdedimg(hsv):
@@ -133,7 +118,7 @@ def convertToNumber(X):
     if X == [1,1,1,1,0,1,1]:
         return 9
     else:
-        return 404
+        return 0    #mode is used later to remove false zeros
 
 class segBox:
     #Segment relative locations. Class Variables
@@ -416,20 +401,31 @@ if __name__ == '__main__':
     ########################################################################
     # ROI Regions of Interest
     ########################################################################
-      #Temperature Motor
-        Int1Motor = imageIdentify(Motor_IntBox1,    'Motor_Int1')
-        Int2Motor = imageIdentify(Motor_IntBox2,    'Motor_Int2')
-        DecMotor  = imageIdentify(Motor_DecimalBox, 'Motor_Decimal')
+        Int1MotorList = []
+        Int2MotorList = []
+        DecMotorList  = []
 
-      #Temperature Room
-      #   Int1Room = imageIdentify(Room_IntBox1,    'Room_Int1')
-      #   Int2Room = imageIdentify(Room_IntBox2,    'Room_Int2')
-      #   DecRoom  = imageIdentify(Room_DecimalBox, 'Room_Decimal')
+        #get 10 values to
+        for i in range(0,10,+1):
+          #Temperature Motor
+            Int1MotorList.append(imageIdentify(Motor_IntBox1,    'Motor_Int1')    )
+            Int2MotorList.append(imageIdentify(Motor_IntBox2,    'Motor_Int2')    )
+            DecMotorList.append( imageIdentify(Motor_DecimalBox, 'Motor_Decimal') )
 
-      #Humidity
-      #   Int1Humidity = imageIdentify(Humidity_IntBox1,    'Humidity_Int1')
-      #   Int2Humidity = imageIdentify(Humidity_IntBox2,    'Humidity_Int2')
-      #   DecHumidity  = imageIdentify(Humidity_DecimalBox, 'Humidity_Decimal')
+          #Temperature Room
+          #   Int1Room = imageIdentify(Room_IntBox1,    'Room_Int1')
+          #   Int2Room = imageIdentify(Room_IntBox2,    'Room_Int2')
+          #   DecRoom  = imageIdentify(Room_DecimalBox, 'Room_Decimal')
+
+          #Humidity
+          #   Int1Humidity = imageIdentify(Humidity_IntBox1,    'Humidity_Int1')
+          #   Int2Humidity = imageIdentify(Humidity_IntBox2,    'Humidity_Int2')
+          #   DecHumidity  = imageIdentify(Humidity_DecimalBox, 'Humidity_Decimal')
+
+        #finds the mode of the List
+        Int1Motor = Counter(Int1MotorList).most_common(1)[0][0]
+        Int2Motor = Counter(Int2MotorList).most_common(1)[0][0]
+        DecMotor  = Counter(DecMotorList).most_common(1)[0][0]
 
        #Draw Rectangle and Location Points
         #must be done after the selections are made, 
