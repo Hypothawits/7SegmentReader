@@ -485,4 +485,3 @@ if __name__ == '__main__':
     cap.release()
     cv2.destroyAllWindows()
 
-    160816 15:13 25_983000
