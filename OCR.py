@@ -48,7 +48,7 @@ def imageIdentify(Box, Selection):
     Box.selection = getSelection(Box.location[0], Box.location[1], Box.size)
     Box.selection = preprocessImage(Box.selection, 'Threshold', Selection)
     cv2.imshow(Selection, Box.selection)
-    cv2.resizeWindow(Selection, 300, 200)
+    cv2.resizeWindow(Selection, 300, 300)
 
     #convert image to number
     ValueList = getValueList(Box.segCoordinates,Box.selection)
@@ -183,7 +183,7 @@ class SelectionFrame:
         cv2.namedWindow(name)
         self.display   = np.zeros((200, 200, 3), np.uint8)
         cv2.createTrackbar('Threshold', name,    int(self.thresh),   255, nothing)
-        cv2.createTrackbar('Size',      name,    int(self.box_size), 200,  nothing)
+        cv2.createTrackbar('Size',      name,    int(self.box_size), 150,  nothing)
         cv2.imshow('frame', self.display)
 
 print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -406,7 +406,7 @@ if __name__ == '__main__':
         DecMotorList  = []
 
         #get 10 values to
-        for i in range(0,10,+1):
+        for i in range(0,25,+1):
           #Temperature Motor
             Int1MotorList.append(imageIdentify(Motor_IntBox1,    'Motor_Int1')    )
             Int2MotorList.append(imageIdentify(Motor_IntBox2,    'Motor_Int2')    )
