@@ -11,7 +11,7 @@ from   time import strftime
 from   collections import Counter
 import ConfigParser
 
-#fix reads zero on change. try, if fail, wait , try again.
+#add time stamp to send data
 #look for memory leak
 
 
