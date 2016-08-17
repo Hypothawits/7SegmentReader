@@ -524,7 +524,7 @@ if __name__ == '__main__':
 
 
             cv2.imshow('frame', frame)
-            c = cv.WaitKey(500)
+            c = cv.WaitKey(1000)
             if c == "q":
                 break
             if stopOpenCv:
