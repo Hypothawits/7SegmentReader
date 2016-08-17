@@ -224,7 +224,7 @@ if __name__ == '__main__':
     stopOpenCv = False
     ############################################################################
     #UDP Set Up
-    UDP_IP = "172.17.2.216"
+    UDP_IP = "10.1.18.236"
     # UDP_IP = "127.0.0.1" #my ip
     UDP_PORT = 8100
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
