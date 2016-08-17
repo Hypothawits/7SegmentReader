@@ -14,8 +14,8 @@ import ConfigParser
 #add time stamp to send data
 #look for memory leak
 
-
 def ConfigSectionMap(section):
+    #Gets the Config values from the config.ini file
     global Config
     dict1 = {}
     options = Config.options(section)
@@ -30,25 +30,30 @@ def ConfigSectionMap(section):
     return dict1
 
 def OnClose(event):
+    #Sets the program to stop camera capture and close 
     global stopOpenCv
     stopOpenCv = True
 
 def SaveData():
-
+    #Does not do anything yet
     print "Doesn't Save Yet" 
 
 def imageIdentify(Box, Selection):
-    Box.size     = cv2.getTrackbarPos('Size',   Selection)
-    # Box.location = [x,y]
+    #Gets and processes the given box selection 
 
+    #Get box size from slider
+    Box.size = cv2.getTrackbarPos('Size',   Selection) 
+    
+    #Set the min box size
     if Box.size <10:
         Box.size = 10
 
-    #get and process the selection
+    #gets and process the selection
     Box.selection = getSelection(Box.location[0], Box.location[1], Box.size)
     Box.selection = preprocessImage(Box.selection, 'Threshold', Selection)
-    cv2.imshow(Selection, Box.selection)
-    cv2.resizeWindow(Selection, 300, 300)
+    
+    cv2.imshow(Selection, Box.selection)    #show proccesed image in selection window
+    cv2.resizeWindow(Selection, 300, 300)   #keeps the windows a set size
 
     #convert image to number
     ValueList = getValueList(Box.segCoordinates,Box.selection)
@@ -62,13 +67,15 @@ def getthresholdedimg(hsv):
     return both
 
 def preprocessImage(imageSelection, X, frame):
-    #preprocesses the selection
-    imageSelection = cv2.cvtColor(imageSelection, cv2.COLOR_BGR2GRAY) #GreyScale
-    thresh = cv2.getTrackbarPos(X, frame)
-    imageSelection = cv2.threshold(imageSelection, thresh, 255, cv2.THRESH_BINARY)[1]
-    kernel = np.ones((5, 5), np.uint8)
-    erosion_iters = cv2.getTrackbarPos('Erode', 'frame')
-    imageSelection = cv2.erode(imageSelection, kernel, iterations = erosion_iters)
+    #preprocesses the selection by removing things 
+
+    imageSelection  = cv2.cvtColor(imageSelection, cv2.COLOR_BGR2GRAY)  #Make GreyScale
+    thresh          = cv2.getTrackbarPos(X, frame)                      #Get threshold from slider
+    imageSelection  = cv2.threshold(imageSelection, thresh, 255, cv2.THRESH_BINARY)[1]
+    
+    kernel          = np.ones((5, 5), np.uint8)
+    erosion_iters   = cv2.getTrackbarPos('Erode', 'frame')
+    imageSelection  = cv2.erode(imageSelection, kernel, iterations = erosion_iters)
     return imageSelection
 
 def getSelection(startX, startY, size):
@@ -222,10 +229,17 @@ if __name__ == '__main__':
     UDP_PORT = 8100
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
     # sock.sendto("Temperature Recording Started", (UDP_IP, UDP_PORT))
+    ############################################################################
+    #Logginf Set Up
+    logging.basicConfig(filename = 'Consol.log', format = '%(levelname)s %(message)s', level = logging.DEBUG)
+    logging.info('~~~~~~ Start Log ~~~~~~   ' + datetime.datetime.now().strftime('%y/%m/%d  %H:%M:%S.%f'))
 
     #############################################################################
     # Video capture
     cap = cv2.VideoCapture(0)
+    cap.set(cv.CV_CAP_PROP_CONTRAST, 150.0)
+    cap.set(cv.CV_CAP_PROP_EXPOSURE, 6.0)
+    cap.set(cv.CV_CAP_PROP_BRIGHTNESS, 200)
 
     def nothing(x):
         pass
@@ -249,7 +263,11 @@ if __name__ == '__main__':
                 if x > 3 and x < 40:
                     OnClose(event)
                 if x > 45 and x < 105:
-                    print "Write a description"
+                    print "Select which digit you would like to set up from the menu."
+                    print "Move the box and adjust the size so that is covers the digit,"
+                    print "each on the red dots should fall within each of the 7 segments."
+                    print "Adjust the threshold slider for each selection so that the number is clearly"
+                    print "visible with as little noise as possible."
                 if x > 110 and x < 205:
                     SaveData()
                 if x > 230 and x < 270:
@@ -270,16 +288,16 @@ if __name__ == '__main__':
                 Row2 = True
                 Row1, Row3 = False, False
                 if x > 230 and x < 270:
-                    print "first Int Room"
+                    # print "first Int Room"
                     Draw_FIntR = True
                     Draw_SIntR, Draw_FDecR = False,False
                 if x > 276 and x < 312:
-                    print "second Int Room"
+                    # print "second Int Room"
                     Draw_SIntR = True
                     Draw_FIntR, Draw_FDecR = False,False
 
                 if x > 340 and x < 380:
-                    print "first decimal Room"
+                    # print "first decimal Room"
                     Draw_FDecR = True
                     Draw_FIntR, Draw_SIntR = False,False
 
@@ -288,16 +306,16 @@ if __name__ == '__main__':
                 Row3 = True
                 Row1, Row2 = False,False
                 if x > 230 and x < 270:
-                    print "first Int Humidity"
+                    # print "first Int Humidity"
                     Draw_FIntH = True
                     Draw_SIntH, Draw_FDecH = False,False
                 if x > 276 and x < 312:
-                    print "second Int Humidity"
+                    # print "second Int Humidity"
                     Draw_SIntH = True
                     Draw_FIntH, Draw_FDecH = False,False
 
                 if x > 340 and x < 380:
-                    print "first decimal Humidity"
+                    # print "first decimal Humidity"
                     Draw_FDecH = True
                     Draw_FIntH, Draw_SIntH = False,False
 
@@ -306,23 +324,23 @@ if __name__ == '__main__':
                 if Row1:    #Motor Temp
                     if (Draw_FIntM):
                         Motor_IntBox1.location = [x, y]
-                    elif (Draw_SIntM):
+                    if (Draw_SIntM):
                         Motor_IntBox2.location = [x, y]
-                    elif (Draw_FDecM):
+                    if (Draw_FDecM):
                         Motor_DecimalBox.location = [x, y]
                 if Row2:    #Room Temp
                     if (Draw_FIntR):
                         Room_IntBox1.location = [x, y]
-                    elif (Draw_SIntR):
+                    if (Draw_SIntR):
                         Room_IntBox2.location = [x, y]
-                    elif (Draw_FDecR):
+                    if (Draw_FDecR):
                         Room_DecimalBox.location = [x, y]
                 if Row3:    #Room umidity
                     if (Draw_FIntH):
                         Humidity_IntBox1.location = [x, y]
-                    elif (Draw_SIntH):
+                    if (Draw_SIntH):
                         Humidity_IntBox2.location = [x, y]
-                    elif (Draw_FDecH):
+                    if (Draw_FDecH):
                         Humidity_DecimalBox.location = [x, y]
 
         elif event == cv2.EVENT_LBUTTONUP:
@@ -332,23 +350,23 @@ if __name__ == '__main__':
             if Row1:    #Motor Temp
                 if (Draw_FIntM):
                     Motor_IntBox1.location = [x, y]
-                elif (Draw_SIntM):
+                if (Draw_SIntM):
                     Motor_IntBox2.location = [x, y]
-                elif (Draw_FDecM):
+                if (Draw_FDecM):
                     Motor_DecimalBox.location = [x, y]
             if Row2:    #Room Temp
                 if (Draw_FIntR):
                     Room_IntBox1.location = [x, y]
-                elif (Draw_SIntR):
+                if (Draw_SIntR):
                     Room_IntBox2.location = [x, y]
-                elif (Draw_FDecR):
+                if (Draw_FDecR):
                     Room_DecimalBox.location = [x, y]
             if Row3:    #Room umidity
                 if (Draw_FIntH):
                     Humidity_IntBox1.location = [x, y]
-                elif (Draw_SIntH):
+                if (Draw_SIntH):
                     Humidity_IntBox2.location = [x, y]
-                elif (Draw_FDecH):
+                if (Draw_FDecH):
                     Humidity_DecimalBox.location = [x, y]
 
     # GUI and windows
@@ -397,7 +415,8 @@ if __name__ == '__main__':
         # Capture frame-by-frame, Frame is the whole image captured
         ret, frame = cap.read()
         if frame is None:
-            print 'frame is None'
+            print 'ERROR: Frame is None, Camera not Found'
+            logging.critical('Frame is None, Camera not Found')
             break
         
         # add menu
@@ -406,9 +425,9 @@ if __name__ == '__main__':
     ########################################################################
     # ROI Regions of Interest
     ########################################################################
-        Int1MotorList = []
-        Int2MotorList = []
-        DecMotorList  = []
+        Int1MotorList, Int1RoomList, Int1HumidityList = [],[],[]
+        Int2MotorList, Int2RoomList, Int2HumidityList = [],[],[]
+        DecMotorList,  DecRoomList,  DecHumidityList    = [],[],[]
         sendData = True
         #get 10 values to
         for i in range(0,10,+1):
@@ -427,19 +446,49 @@ if __name__ == '__main__':
           #   Int1Room = imageIdentify(Room_IntBox1,    'Room_Int1')
           #   Int2Room = imageIdentify(Room_IntBox2,    'Room_Int2')
           #   DecRoom  = imageIdentify(Room_DecimalBox, 'Room_Decimal')
+            # tempx = imageIdentify(Room_IntBox1,    'Room_Int1')
+            # tempy = imageIdentify(Room_IntBox2,    'Room_Int2')
+            # tempz = imageIdentify(Room_DecimalBox, 'Room_Decimal')
+            # if tempx != None:
+            #     Int1RoomList.append(tempx)          
+            # if tempy != None:
+            #     Int2RoomList.append(tempy)
+            # if tempz != None:
+            #     DecRoomList.append(tempz)
 
           #Humidity
           #   Int1Humidity = imageIdentify(Humidity_IntBox1,    'Humidity_Int1')
           #   Int2Humidity = imageIdentify(Humidity_IntBox2,    'Humidity_Int2')
           #   DecHumidity  = imageIdentify(Humidity_DecimalBox, 'Humidity_Decimal')
+            # tempx = imageIdentify(Humidity_IntBox1,    'Humidity_Int1')
+            # tempy = imageIdentify(Humidity_IntBox2,    'Humidity_Int2')
+            # tempz = imageIdentify(Humidity_DecimalBox, 'Humidity_Decimal')
+            # if tempx != None:
+            #     Int1HumidityList.append(tempx)          
+            # if tempy != None:
+            #     Int2HumidityList.append(tempy)
+            # if tempz != None:
+            #     DecHumidityList.append(tempz)
 
-        #finds the mode of the List
+        #finds the mode of the Lists, if any are empty (ie Failed to convert to Number)
+            #then an error is thrown and no data is sent. The program then trys again.
         try:
             Int1Motor = Counter(Int1MotorList).most_common(1)[0][0]
             Int2Motor = Counter(Int2MotorList).most_common(1)[0][0]
             DecMotor  = Counter(DecMotorList ).most_common(1)[0][0]
+
+            # Int1Room = Counter(Int1RoomList).most_common(1)[0][0]
+            # Int2Room = Counter(Int2RoomList).most_common(1)[0][0]
+            # DecRoom  = Counter(DecRoomList ).most_common(1)[0][0]
+
+            # Int1Humidity = Counter(Int1HumidityList).most_common(1)[0][0]
+            # Int2Humidity = Counter(Int2HumidityList).most_common(1)[0][0]
+            # DecHumidity  = Counter(DecHumidityList ).most_common(1)[0][0]
         except:
-            print "Error in Conversion: Empty Lists"
+            log_String = "List Empty! --- " + datetime.datetime.now().strftime('%H:%M:%S.%f')
+            logging.warning(log_String)
+            print log_String
+            
             sendData = False
 
        #Draw Rectangle and Location Points
@@ -464,12 +513,15 @@ if __name__ == '__main__':
             # humidityRoom     = 10*Int1Humidity + Int2Humidity + 0.1*DecHumidity
             
             # print "Motor Temp: %0.1f,  Room Temp: %0.1f,  Humidity: %0.1f"%(temperatureMotor, temperatureRoom, humidityRoom)
-            Timestamp = datetime.datetime.now().strftime('%y%m%d%H%M%S_%f')
-            print "Motor Temp: %0.1f --- "%(temperatureMotor) + Timestamp
+            log_String = "Motor Temp: %0.1f --- "%(temperatureMotor) + datetime.datetime.now().strftime('%H:%M:%S.%f')
             
+            print log_String
+            logging.info(log_String)
+
             #Send Data over network
             SendArray = [temperatureMotor]
             sock.sendto('{"temperatures": %r}'%SendArray, (UDP_IP, UDP_PORT))
+
 
             cv2.imshow('frame', frame)
             c = cv.WaitKey(500)
@@ -481,7 +533,10 @@ if __name__ == '__main__':
             cv2.imshow('frame', frame)
             c = cv.WaitKey(1)
 
+        if stopOpenCv:
+                break
+
     # When everything done, release the capture
     cap.release()
     cv2.destroyAllWindows()
-
+    logging.info('~~~~~~ End Log ~~~~~~' + datetime.datetime.now().strftime('%y/%m/%d  %H:%M:%S.%f'))
