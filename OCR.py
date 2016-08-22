@@ -121,6 +121,25 @@ def convertToNumber(X):
     else:
         return None
 
+def draw():
+    #Draw Rectangle and Location Points
+    #must be done after the selections are made, 
+    #or the boxs and points will appear in the processed image!
+    Motor_IntBox1.drawBoxRectangle()
+    Motor_IntBox2.drawBoxRectangle()
+    Motor_DecimalBox.drawBoxRectangle()
+    
+    if extra_RoomTemp: #draw boxes if enabled
+        Room_IntBox1.drawBoxRectangle()
+        Room_IntBox2.drawBoxRectangle()
+        Room_DecimalBox.drawBoxRectangle()
+    if extra_RoomHum:  #draw boxes if enabled  
+        Humidity_IntBox1.drawBoxRectangle()
+        Humidity_IntBox2.drawBoxRectangle()
+        Humidity_DecimalBox.drawBoxRectangle()
+
+    cv2.imshow('frame', frame)
+
 class segBox:
     #creates the frame and 7 seg point overlay for each selection 
 
@@ -195,7 +214,8 @@ if __name__ == '__main__':
     ############################################################################
     # Pre process params
     erosion_iters       = ConfigSectionMap("PREPROCESS")['erode']
-    extraSelections = True #Make True to enable Room temperature and Humidity data capture 
+    extra_RoomTemp = True #Make True to enable Room Temperature data capture 
+    extra_RoomHum  = False #Make True to enable Room Humidity data capture 
     ############################################################################
     # Variable Set Up
     drawing     = False         # true if mouse is pressed
@@ -205,9 +225,15 @@ if __name__ == '__main__':
     Row1        = True
     Row2, Row3  = False, False
     stopOpenCv  = False         # flag to stop opencv
+
+    #initialize to None
+    temperatureMotor    = None
+    temperatureRoom     = None
+    humidityRoom        = None
     ############################################################################
     # UDP Set Up
-    UDP_IP = "10.1.18.236"
+    # UDP_IP = "10.1.18.236"
+    UDP_IP = "127.0.0.1"
     UDP_PORT = 8100
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
     ############################################################################
@@ -367,11 +393,12 @@ if __name__ == '__main__':
     Int_selection_2_motor = SelectionFrame('Motor_Int2')
     Dec_selection_motor   = SelectionFrame('Motor_Decimal')
 
-    if extraSelections: #only create frames if option enabled
+    if extra_RoomTemp: #only create frames if option enabled
         Int_selection_1_room = SelectionFrame('Room_Int1')
         Int_selection_2_room = SelectionFrame('Room_Int2')
         Dec_selection_room   = SelectionFrame('Room_Decimal')
 
+    if extra_RoomHum:
         Int_selection_1_Humidity = SelectionFrame('Humidity_Int1')
         Int_selection_2_Humidity = SelectionFrame('Humidity_Int2')
         Dec_selection_Humidity   = SelectionFrame('Humidity_Decimal')
@@ -426,7 +453,7 @@ if __name__ == '__main__':
             if tempz != None:
                 DecMotorList.append(tempz)
 
-            if extraSelections:
+            if extra_RoomTemp:
               #Temperature Room
                 tempx = imageIdentify(Room_IntBox1,    'Room_Int1')
                 tempy = imageIdentify(Room_IntBox2,    'Room_Int2')
@@ -438,6 +465,7 @@ if __name__ == '__main__':
                 if tempz != None:
                     DecRoomList.append(tempz)
 
+            if extra_RoomHum:
               #Humidity
                 tempx = imageIdentify(Humidity_IntBox1,    'Humidity_Int1')
                 tempy = imageIdentify(Humidity_IntBox2,    'Humidity_Int2')
@@ -451,57 +479,79 @@ if __name__ == '__main__':
 
         #finds the mode of the Lists, if list is empty throws an ERROR and 
         #sendData is set to false. The program then trys bypassing the 1 second wait. 
-        try:
+        try: #convert Motor Temperature
             Int1Motor = Counter(Int1MotorList).most_common(1)[0][0]
             Int2Motor = Counter(Int2MotorList).most_common(1)[0][0]
             DecMotor  = Counter(DecMotorList ).most_common(1)[0][0]
 
-            if extraSelections: # Find Mode if Enabled 
-                Int1Room = Counter(Int1RoomList).most_common(1)[0][0]
-                Int2Room = Counter(Int2RoomList).most_common(1)[0][0]
-                DecRoom  = Counter(DecRoomList ).most_common(1)[0][0]
-
-                Int1Humidity = Counter(Int1HumidityList).most_common(1)[0][0]
-                Int2Humidity = Counter(Int2HumidityList).most_common(1)[0][0]
-                DecHumidity  = Counter(DecHumidityList ).most_common(1)[0][0]
         except:
-            log_String = "List Empty! --- " + datetime.datetime.now().strftime('%H:%M:%S.%f')
+            log_String = "No Motor Temp Found ---" + datetime.datetime.now().strftime('%H:%M:%S.%f')
             logging.warning(log_String)
             print log_String
             sendData = False
 
-       #Draw Rectangle and Location Points
-        #must be done after the selections are made, 
-        #or the boxs and points will appear in the processed image!
-        Motor_IntBox1.drawBoxRectangle()
-        Motor_IntBox2.drawBoxRectangle()
-        Motor_DecimalBox.drawBoxRectangle()
-        
-        if extraSelections: #draw boxes if enabled
-            Room_IntBox1.drawBoxRectangle()
-            Room_IntBox2.drawBoxRectangle()
-            Room_DecimalBox.drawBoxRectangle()
-            
-            Humidity_IntBox1.drawBoxRectangle()
-            Humidity_IntBox2.drawBoxRectangle()
-            Humidity_DecimalBox.drawBoxRectangle()
-        cv2.imshow('frame', frame)
+        if extra_RoomTemp: # Find Mode if Enabled 
+            try: #convert Room Temperature
+                Int1Room = Counter(Int1RoomList).most_common(1)[0][0]
+                Int2Room = Counter(Int2RoomList).most_common(1)[0][0]
+                DecRoom  = Counter(DecRoomList ).most_common(1)[0][0]
+            except:
+                #Set Values to None
+                Int1Room, Int2Room, DecRoom = None,None,None
+                log_String = "No Room Temp Found --- " + datetime.datetime.now().strftime('%H:%M:%S.%f')
+                logging.warning(log_String)
+                #thing
+        if extra_RoomHum: # Find Mode if Enabled 
+            try: #convert Room Humidity
+                Int1Humidity = Counter(Int1HumidityList).most_common(1)[0][0]
+                Int2Humidity = Counter(Int2HumidityList).most_common(1)[0][0]
+                DecHumidity  = Counter(DecHumidityList ).most_common(1)[0][0]
+            except:
+                #Set Values to None
+                Int1Humidity, Int2Humidity, DecHumidity = None,None,None
+                log_String = "No Humidityt Found --- " + datetime.datetime.now().strftime('%H:%M:%S.%f')
+                logging.warning(log_String)
+                #thing
 
+        draw()  #draw all the rectangels 
+
+        ##############################################################################################
+        # Send data over UDP
         if sendData:
             #Combine integer components and Decimal
             temperatureMotor = float(10*Int1Motor + Int2Motor) + 0.1*float(DecMotor)
+            if extra_RoomTemp:
+                try:
+                    temperatureRoom  = float(10*Int1Room  + Int2Room)  + 0.1*float(DecRoom)
+                except:
+                    temperatureRoom = None
+
+            if extra_RoomHum:
+                try:
+                    humidityRoom     = float(10*Int1Humidity + Int2Humidity) + 0.1*float(DecHumidity)
+                except:
+                    humidityRoom = None
             
-            if extraSelections:
-                temperatureRoom  = float(10*Int1Room  + Int2Room)  + 0.1*float(DecRoom)
-                humidityRoom     = float(10*Int1Humidity + Int2Humidity) + 0.1*float(DecHumidity)
-            
-            # print "Motor Temp: %0.1f,  Room Temp: %0.1f,  Humidity: %0.1f"%(temperatureMotor, temperatureRoom, humidityRoom)
-            if extraSelections: #Create string to send all enabled data
-                log_String = "Motor Temp: %0.1f :: Room Temp: %0.1f :: Humidity: %0.1f --- "%(temperatureMotor, temperatureRoom, humidityRoom) + datetime.datetime.now().strftime('%H:%M:%S.%f')
+            #Procces what data is aviliable and formate correctly
+            if   temperatureMotor and temperatureRoom != None and humidityRoom != None:
+                #All values aviliable!
+                log_String = "Motor Temp: %0.1f :  Room Temp: %0.1f :  Humidity: %0.1f --- "%(temperatureMotor, temperatureRoom, humidityRoom) + datetime.datetime.now().strftime('%H:%M:%S.%f')
                 SendArray = [temperatureMotor, temperatureRoom, humidityRoom]
-            else:   #Create string to send Motor Temp only
-                log_String = "Motor Temp: %0.1f --- "%(temperatureMotor) + datetime.datetime.now().strftime('%H:%M:%S.%f')
-                SendArray = [temperatureMotor]
+
+            elif temperatureMotor and temperatureRoom != None and humidityRoom == None:    
+                # Motor and Room aviliable!
+                log_String = "Motor Temp: %0.1f :  Room Temp: %0.1f :  Humidity:      --- "%(temperatureMotor, temperatureRoom) + datetime.datetime.now().strftime('%H:%M:%S.%f')
+                SendArray = [temperatureMotor, temperatureRoom, humidityRoom]
+
+            elif temperatureMotor and temperatureRoom == None and humidityRoom != None:
+                #Motor and Humidity aviliable!
+                log_String = "Motor Temp: %0.1f :  Room Temp:      :  Humidity: %0.1f --- "%(temperatureMotor, humidityRoom) + datetime.datetime.now().strftime('%H:%M:%S.%f')
+                SendArray = [temperatureMotor, temperatureRoom, humidityRoom]
+
+            elif temperatureMotor and temperatureRoom == None and humidityRoom == None:
+                #Only Motor aviliable
+                log_String = "Motor Temp: %0.1f :  Room Temp:      :  Humidity:      --- "%(temperatureMotor) + datetime.datetime.now().strftime('%H:%M:%S.%f')
+                SendArray = [temperatureMotor, temperatureRoom, humidityRoom]
 
             #Print and log outputed Data
             print log_String
