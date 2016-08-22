@@ -1,4 +1,4 @@
-
+#Seven Segment Reader
 import socket
 import logging
 import numpy as np
@@ -122,7 +122,9 @@ def convertToNumber(X):
         return None
 
 class segBox:
-    #Segment relative locations. Class Variables
+    #creates the frame and 7 seg point overlay for each selection 
+
+    #Segment relative locations
     ax,ay = 0.50, 0.15
     bx,by = 0.65, 0.25
     cx,cy = 0.63, 0.65
@@ -130,48 +132,45 @@ class segBox:
     ex,ey = 0.35, 0.65
     fx,fy = 0.36, 0.25
     gx,gy = 0.50, 0.50
+    segmentLocations = [[ax,ay],[bx,by],[cx,cy],[dx,dy],[ex,ey],[fx,fy],[gx,gy]]
 
+    #For storing image selection
     selection      = []
-    segCoordinates = []
+
+    #Point location coordinates
+    A,B,C,D,E,F,G = [0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]
+    segCoordinates = [A,B,C,D,E,F,G]
+
+    #Set starting location and size
     size     = 10
     location = [200, 200]
     
-    
-
     def __init__(self, colour):
         self.colour = colour
 
     def drawBoxRectangle(self):
         origin   = [self.location[0] - self.size, self.location[1] - self.size]
 
-        #convert to pixel location within box (top left being origin)
-        self.A = [int(self.size*2*float(self.ax)),int(self.size*2*float(self.ay))]
-        self.B = [int(self.size*2*float(self.bx)),int(self.size*2*float(self.by))]
-        self.C = [int(self.size*2*float(self.cx)),int(self.size*2*float(self.cy))]
-        self.D = [int(self.size*2*float(self.dx)),int(self.size*2*float(self.dy))]
-        self.E = [int(self.size*2*float(self.ex)),int(self.size*2*float(self.ey))]
-        self.F = [int(self.size*2*float(self.fx)),int(self.size*2*float(self.fy))]
-        self.G = [int(self.size*2*float(self.gx)),int(self.size*2*float(self.gy))]
+        #convert to absolute pixel location within box (top left being origin)
+        i = 0   #first 
+        for coordinates in self.segmentLocations:
+            self.segCoordinates[i] = [int(self.size*2*float(coordinates[0])),int(self.size*2*float(coordinates[1]))]
+            i +=1
 
-        self.segCoordinates = [self.A,self.B,self.C,self.D,self.E,self.F,self.G]
-        
         #draw rectangle arround selection
         cv2.rectangle(frame, (self.location[0] -self.size, self.location[1] -self.size),\
                              (self.location[0] +self.size, self.location[1] +self.size),\
                               self.colour, 1) 
 
-        #draw segment indicator points
-        cv2.circle(frame, (origin[0] + self.A[0], origin[1] + self.A[1]), 1 , (0, 0, 255), -1)
-        cv2.circle(frame, (origin[0] + self.B[0], origin[1] + self.B[1]), 1 , (0, 0, 255), -1)
-        cv2.circle(frame, (origin[0] + self.C[0], origin[1] + self.C[1]), 1 , (0, 0, 255), -1)
-        cv2.circle(frame, (origin[0] + self.D[0], origin[1] + self.D[1]), 1 , (0, 0, 255), -1)
-        cv2.circle(frame, (origin[0] + self.E[0], origin[1] + self.E[1]), 1 , (0, 0, 255), -1)
-        cv2.circle(frame, (origin[0] + self.F[0], origin[1] + self.F[1]), 1 , (0, 0, 255), -1)
-        cv2.circle(frame, (origin[0] + self.G[0], origin[1] + self.G[1]), 1 , (0, 0, 255), -1)
-        
+        #draw indicator for each segment location 
+        for point in self.segCoordinates:
+            cv2.circle(frame, (origin[0] + point[0], origin[1] + point[1]), 1 , (0, 0, 255), -1)
+
+        #Update Window
         cv2.imshow('frame', frame)
 
 class SelectionFrame:
+    #Creates a window with threshold and selection size sliders
     global Config
     Config = ConfigParser.ConfigParser()
     Config.read("./config.ini")
@@ -187,13 +186,6 @@ class SelectionFrame:
         cv2.createTrackbar('Size',      name,    int(self.box_size), 150,  nothing)
         cv2.imshow('frame', self.display)
 
-# class MappingError(Exception):
-#     def __init__(self, value):
-#         self.value = value
-#     def __str__(self):
-#         return repr(self.value)
-
-
 print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 print "Start Programe"
 
@@ -203,47 +195,39 @@ if __name__ == '__main__':
     ############################################################################
     # Pre process params
     erosion_iters       = ConfigSectionMap("PREPROCESS")['erode']
-    most_common_filter  = ConfigSectionMap("POSPROCESS")['filter']
-
-    motor_x, motor_y   = 100, 100,
-    motor_x2, motor_y2 = 100, 100,
-    motor_x3, motor_y3 = 100, 100,
-    
-    extraSelections = False
-
-    drawing     = False  # true if mouse is pressed
+    extraSelections = True #Make True to enable Room temperature and Humidity data capture 
+    ############################################################################
+    # Variable Set Up
+    drawing     = False         # true if mouse is pressed
     Draw_FIntM  = True
-    Draw_SIntM  = False  
+    Draw_SIntM  = False
     Draw_FDecM  = False
     Row1        = True
     Row2, Row3  = False, False
-
-    # flag to stop opencv
-    stopOpenCv = False
+    stopOpenCv  = False         # flag to stop opencv
     ############################################################################
-    #UDP Set Up
+    # UDP Set Up
     UDP_IP = "10.1.18.236"
-    # UDP_IP = "127.0.0.1" #my ip
     UDP_PORT = 8100
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
     ############################################################################
-    #Logginf Set Up
+    # Logging Set Up
     logging.basicConfig(filename = 'Consol.log', format = '%(levelname)s %(message)s', level = logging.DEBUG)
     logging.info('~~~~~~ Start Log ~~~~~~   ' + datetime.datetime.now().strftime('%y/%m/%d  %H:%M:%S.%f'))
-
     #############################################################################
     # Video capture
     cap = cv2.VideoCapture(0)
     cap.set(cv.CV_CAP_PROP_CONTRAST, 150.0)
     cap.set(cv.CV_CAP_PROP_EXPOSURE, 6.0)
     cap.set(cv.CV_CAP_PROP_BRIGHTNESS, 200)
+    #############################################################################
 
     def nothing(x):
         pass
 
     # mouse callback function
-    def draw_rectangle(event, x, y, flags, param):
-        global motor_x, motor_y, motor_x2, motor_y2, motor_x3, motor_y3, Row1, Row2, Row3, drawing      
+    def mouseEvent(event, x, y, flags, param):
+        global Row1, Row2, Row3, drawing      
         global Draw_FIntM, Draw_SIntM, Draw_FDecM
         global Draw_FIntR, Draw_SIntR, Draw_FDecR
         global Draw_FIntH, Draw_SIntH, Draw_FDecH
@@ -265,6 +249,8 @@ if __name__ == '__main__':
                     print "visible with as little noise as possible."
                 if x > 110 and x < 205:
                     SaveData()
+
+                # Selection Control buttons
                 if x > 230 and x < 270:
                     # print "first Int Motor"
                     Draw_FIntM = True
@@ -341,9 +327,7 @@ if __name__ == '__main__':
                     if (Draw_FDecH):
                         Humidity_DecimalBox.location = [x, y]
 
-        elif event == cv2.EVENT_LBUTTONUP:
-            drawing = False                  
-
+        #Move selection with mouse (while clicked)
         elif event == cv2.EVENT_MOUSEMOVE and drawing:
             if Row1:    #Motor Temp
                 if (Draw_FIntM):
@@ -369,13 +353,16 @@ if __name__ == '__main__':
                 if (Draw_FDecH):
                     Humidity_DecimalBox.location = [x, y]
 
-    # GUI and windows
-    # show main window
+        elif event == cv2.EVENT_LBUTTONUP:
+            drawing = False 
+
+    #############################################################################
+    # GUI and Window Set Up
+    # show main window and add it's trackbar
     cv2.namedWindow('frame')
     cv2.createTrackbar('Erode', 'frame', int(erosion_iters),       4,   nothing)
-    cv2.createTrackbar('Filter','frame', int(most_common_filter), 10,   nothing)
 
-    # Create selection frames
+    # Create selection frames. Each set is for a 2 digit number with 1 decimal
     Int_selection_1_motor = SelectionFrame('Motor_Int1')
     Int_selection_2_motor = SelectionFrame('Motor_Int2')
     Dec_selection_motor   = SelectionFrame('Motor_Decimal')
@@ -389,14 +376,9 @@ if __name__ == '__main__':
         Int_selection_2_Humidity = SelectionFrame('Humidity_Int2')
         Dec_selection_Humidity   = SelectionFrame('Humidity_Decimal')
 
-    
-    # menu image
+    # Load Menu Image and Set up mouse callback
     menu = cv2.imread("menu.png")
-    cv2.setMouseCallback('frame', draw_rectangle)
-
-    meas_stack   = []
-    integer_List = []
-    decimal_List = []
+    cv2.setMouseCallback('frame', mouseEvent)
 
     #create Boxes
     Motor_IntBox1       = segBox((0,255,0))
@@ -415,24 +397,24 @@ if __name__ == '__main__':
     while True:
         # Capture frame-by-frame, Frame is the whole image captured
         ret, frame = cap.read()
+        #Check that Image was captured
         if frame is None:
             print 'ERROR: Frame is None, Camera not Found'
             logging.critical('Frame is None, Camera not Found')
             break
         
-        # add menu
-        frame_h, frame_w = frame.shape[:2]
+        # Draw menu over Frame
         frame[0:menu.shape[0], 0:menu.shape[1]] = menu
-    ########################################################################
-    # ROI Regions of Interest
-    ########################################################################
+        ########################################################################
+        # ROI Regions of Interest
         Int1MotorList, Int1RoomList, Int1HumidityList = [],[],[]
         Int2MotorList, Int2RoomList, Int2HumidityList = [],[],[]
-        DecMotorList,  DecRoomList,  DecHumidityList    = [],[],[]
-        sendData = True
+        DecMotorList,  DecRoomList,  DecHumidityList  = [],[],[]
+        sendData = True     #Make false to stop UDP data sending
 
-        #get 10 values to mode
-        for i in range(0,10,+1):
+        #Create a list of 10 values and find the mode. 
+        #If no value is found, dont add to the list
+        for i in range(0, 10, +1):
           #Temperature Motor
             tempx = imageIdentify(Motor_IntBox1,    'Motor_Int1')
             tempy = imageIdentify(Motor_IntBox2,    'Motor_Int2')
@@ -467,14 +449,14 @@ if __name__ == '__main__':
                 if tempz != None:
                     DecHumidityList.append(tempz)
 
-        #finds the mode of the Lists, if any are empty (ie Failed to convert to Number)
-            #then an error is thrown and no data is sent. The program then trys again.
+        #finds the mode of the Lists, if list is empty throws an ERROR and 
+        #sendData is set to false. The program then trys bypassing the 1 second wait. 
         try:
             Int1Motor = Counter(Int1MotorList).most_common(1)[0][0]
             Int2Motor = Counter(Int2MotorList).most_common(1)[0][0]
             DecMotor  = Counter(DecMotorList ).most_common(1)[0][0]
 
-            if extraSelections:
+            if extraSelections: # Find Mode if Enabled 
                 Int1Room = Counter(Int1RoomList).most_common(1)[0][0]
                 Int2Room = Counter(Int2RoomList).most_common(1)[0][0]
                 DecRoom  = Counter(DecRoomList ).most_common(1)[0][0]
@@ -486,17 +468,16 @@ if __name__ == '__main__':
             log_String = "List Empty! --- " + datetime.datetime.now().strftime('%H:%M:%S.%f')
             logging.warning(log_String)
             print log_String
-            
             sendData = False
 
        #Draw Rectangle and Location Points
         #must be done after the selections are made, 
-        #or the box and points will appear in the image!
+        #or the boxs and points will appear in the processed image!
         Motor_IntBox1.drawBoxRectangle()
         Motor_IntBox2.drawBoxRectangle()
         Motor_DecimalBox.drawBoxRectangle()
         
-        if extraSelections:
+        if extraSelections: #draw boxes if enabled
             Room_IntBox1.drawBoxRectangle()
             Room_IntBox2.drawBoxRectangle()
             Room_DecimalBox.drawBoxRectangle()
@@ -504,6 +485,7 @@ if __name__ == '__main__':
             Humidity_IntBox1.drawBoxRectangle()
             Humidity_IntBox2.drawBoxRectangle()
             Humidity_DecimalBox.drawBoxRectangle()
+        cv2.imshow('frame', frame)
 
         if sendData:
             #Combine integer components and Decimal
@@ -514,32 +496,31 @@ if __name__ == '__main__':
                 humidityRoom     = float(10*Int1Humidity + Int2Humidity) + 0.1*float(DecHumidity)
             
             # print "Motor Temp: %0.1f,  Room Temp: %0.1f,  Humidity: %0.1f"%(temperatureMotor, temperatureRoom, humidityRoom)
-            if extraSelections:
+            if extraSelections: #Create string to send all enabled data
                 log_String = "Motor Temp: %0.1f :: Room Temp: %0.1f :: Humidity: %0.1f --- "%(temperatureMotor, temperatureRoom, humidityRoom) + datetime.datetime.now().strftime('%H:%M:%S.%f')
                 SendArray = [temperatureMotor, temperatureRoom, humidityRoom]
-            else:
+            else:   #Create string to send Motor Temp only
                 log_String = "Motor Temp: %0.1f --- "%(temperatureMotor) + datetime.datetime.now().strftime('%H:%M:%S.%f')
                 SendArray = [temperatureMotor]
-            
 
+            #Print and log outputed Data
             print log_String
             logging.info(log_String)
 
             #Send Data over network
             sock.sendto('{"temperatures": %r}'%SendArray, (UDP_IP, UDP_PORT))
 
-
-            cv2.imshow('frame', frame)
             c = cv.WaitKey(1000)
             if c == "q":
                 break
             if stopOpenCv:
                 break
-        else:
-            cv2.imshow('frame', frame)
-            c = cv.WaitKey(1)
 
-        if stopOpenCv:
+        else: # if send data is false, do nothing and restart loop.
+            c = cv.WaitKey(1)
+            if c == "q":
+                break
+            if stopOpenCv:
                 break
 
     # When everything done, release the capture
