@@ -209,6 +209,8 @@ if __name__ == '__main__':
     motor_x2, motor_y2 = 100, 100,
     motor_x3, motor_y3 = 100, 100,
     
+    extraSelections = False
+
     drawing     = False  # true if mouse is pressed
     Draw_FIntM  = True
     Draw_SIntM  = False  
@@ -241,7 +243,7 @@ if __name__ == '__main__':
 
     # mouse callback function
     def draw_rectangle(event, x, y, flags, param):
-        global motor_x, motor_y,, motor_x2, motor_y2, motor_x3, motor_y3, Row1, Row2, Row3, drawing      
+        global motor_x, motor_y, motor_x2, motor_y2, motor_x3, motor_y3, Row1, Row2, Row3, drawing      
         global Draw_FIntM, Draw_SIntM, Draw_FDecM
         global Draw_FIntR, Draw_SIntR, Draw_FDecR
         global Draw_FIntH, Draw_SIntH, Draw_FDecH
@@ -378,13 +380,14 @@ if __name__ == '__main__':
     Int_selection_2_motor = SelectionFrame('Motor_Int2')
     Dec_selection_motor   = SelectionFrame('Motor_Decimal')
 
-    Int_selection_1_room = SelectionFrame('Room_Int1')
-    Int_selection_2_room = SelectionFrame('Room_Int2')
-    Dec_selection_room   = SelectionFrame('Room_Decimal')
+    if extraSelections: #only create frames if option enabled
+        Int_selection_1_room = SelectionFrame('Room_Int1')
+        Int_selection_2_room = SelectionFrame('Room_Int2')
+        Dec_selection_room   = SelectionFrame('Room_Decimal')
 
-    Int_selection_1_Humidity = SelectionFrame('Humidity_Int1')
-    Int_selection_2_Humidity = SelectionFrame('Humidity_Int2')
-    Dec_selection_Humidity   = SelectionFrame('Humidity_Decimal')
+        Int_selection_1_Humidity = SelectionFrame('Humidity_Int1')
+        Int_selection_2_Humidity = SelectionFrame('Humidity_Int2')
+        Dec_selection_Humidity   = SelectionFrame('Humidity_Decimal')
 
     
     # menu image
@@ -427,7 +430,8 @@ if __name__ == '__main__':
         Int2MotorList, Int2RoomList, Int2HumidityList = [],[],[]
         DecMotorList,  DecRoomList,  DecHumidityList    = [],[],[]
         sendData = True
-        #get 10 values to
+
+        #get 10 values to mode
         for i in range(0,10,+1):
           #Temperature Motor
             tempx = imageIdentify(Motor_IntBox1,    'Motor_Int1')
@@ -440,27 +444,28 @@ if __name__ == '__main__':
             if tempz != None:
                 DecMotorList.append(tempz)
 
-          #Temperature Room
-            tempx = imageIdentify(Room_IntBox1,    'Room_Int1')
-            tempy = imageIdentify(Room_IntBox2,    'Room_Int2')
-            tempz = imageIdentify(Room_DecimalBox, 'Room_Decimal')
-            if tempx != None:
-                Int1RoomList.append(tempx)          
-            if tempy != None:
-                Int2RoomList.append(tempy)
-            if tempz != None:
-                DecRoomList.append(tempz)
+            if extraSelections:
+              #Temperature Room
+                tempx = imageIdentify(Room_IntBox1,    'Room_Int1')
+                tempy = imageIdentify(Room_IntBox2,    'Room_Int2')
+                tempz = imageIdentify(Room_DecimalBox, 'Room_Decimal')
+                if tempx != None:
+                    Int1RoomList.append(tempx)          
+                if tempy != None:
+                    Int2RoomList.append(tempy)
+                if tempz != None:
+                    DecRoomList.append(tempz)
 
-          #Humidity
-            tempx = imageIdentify(Humidity_IntBox1,    'Humidity_Int1')
-            tempy = imageIdentify(Humidity_IntBox2,    'Humidity_Int2')
-            tempz = imageIdentify(Humidity_DecimalBox, 'Humidity_Decimal')
-            if tempx != None:
-                Int1HumidityList.append(tempx)          
-            if tempy != None:
-                Int2HumidityList.append(tempy)
-            if tempz != None:
-                DecHumidityList.append(tempz)
+              #Humidity
+                tempx = imageIdentify(Humidity_IntBox1,    'Humidity_Int1')
+                tempy = imageIdentify(Humidity_IntBox2,    'Humidity_Int2')
+                tempz = imageIdentify(Humidity_DecimalBox, 'Humidity_Decimal')
+                if tempx != None:
+                    Int1HumidityList.append(tempx)          
+                if tempy != None:
+                    Int2HumidityList.append(tempy)
+                if tempz != None:
+                    DecHumidityList.append(tempz)
 
         #finds the mode of the Lists, if any are empty (ie Failed to convert to Number)
             #then an error is thrown and no data is sent. The program then trys again.
@@ -469,13 +474,14 @@ if __name__ == '__main__':
             Int2Motor = Counter(Int2MotorList).most_common(1)[0][0]
             DecMotor  = Counter(DecMotorList ).most_common(1)[0][0]
 
-            Int1Room = Counter(Int1RoomList).most_common(1)[0][0]
-            Int2Room = Counter(Int2RoomList).most_common(1)[0][0]
-            DecRoom  = Counter(DecRoomList ).most_common(1)[0][0]
+            if extraSelections:
+                Int1Room = Counter(Int1RoomList).most_common(1)[0][0]
+                Int2Room = Counter(Int2RoomList).most_common(1)[0][0]
+                DecRoom  = Counter(DecRoomList ).most_common(1)[0][0]
 
-            Int1Humidity = Counter(Int1HumidityList).most_common(1)[0][0]
-            Int2Humidity = Counter(Int2HumidityList).most_common(1)[0][0]
-            DecHumidity  = Counter(DecHumidityList ).most_common(1)[0][0]
+                Int1Humidity = Counter(Int1HumidityList).most_common(1)[0][0]
+                Int2Humidity = Counter(Int2HumidityList).most_common(1)[0][0]
+                DecHumidity  = Counter(DecHumidityList ).most_common(1)[0][0]
         except:
             log_String = "List Empty! --- " + datetime.datetime.now().strftime('%H:%M:%S.%f')
             logging.warning(log_String)
@@ -490,28 +496,36 @@ if __name__ == '__main__':
         Motor_IntBox2.drawBoxRectangle()
         Motor_DecimalBox.drawBoxRectangle()
         
-        Room_IntBox1.drawBoxRectangle()
-        Room_IntBox2.drawBoxRectangle()
-        Room_DecimalBox.drawBoxRectangle()
-        
-        Humidity_IntBox1.drawBoxRectangle()
-        Humidity_IntBox2.drawBoxRectangle()
-        Humidity_DecimalBox.drawBoxRectangle()
+        if extraSelections:
+            Room_IntBox1.drawBoxRectangle()
+            Room_IntBox2.drawBoxRectangle()
+            Room_DecimalBox.drawBoxRectangle()
+            
+            Humidity_IntBox1.drawBoxRectangle()
+            Humidity_IntBox2.drawBoxRectangle()
+            Humidity_DecimalBox.drawBoxRectangle()
 
         if sendData:
             #Combine integer components and Decimal
             temperatureMotor = float(10*Int1Motor + Int2Motor) + 0.1*float(DecMotor)
-            temperatureRoom  = float(10*Int1Room  + Int2Room)  + 0.1*float(DecRoom)
-            humidityRoom     = float(10*Int1Humidity + Int2Humidity) + 0.1*float(DecHumidity)
+            
+            if extraSelections:
+                temperatureRoom  = float(10*Int1Room  + Int2Room)  + 0.1*float(DecRoom)
+                humidityRoom     = float(10*Int1Humidity + Int2Humidity) + 0.1*float(DecHumidity)
             
             # print "Motor Temp: %0.1f,  Room Temp: %0.1f,  Humidity: %0.1f"%(temperatureMotor, temperatureRoom, humidityRoom)
-            log_String = "Motor Temp: %0.1f :: Room Temp: %0.1f :: Humidity: %0.1f --- "%(temperatureMotor, temperatureRoom, humidityRoom) + datetime.datetime.now().strftime('%H:%M:%S.%f')
+            if extraSelections:
+                log_String = "Motor Temp: %0.1f :: Room Temp: %0.1f :: Humidity: %0.1f --- "%(temperatureMotor, temperatureRoom, humidityRoom) + datetime.datetime.now().strftime('%H:%M:%S.%f')
+                SendArray = [temperatureMotor, temperatureRoom, humidityRoom]
+            else:
+                log_String = "Motor Temp: %0.1f --- "%(temperatureMotor) + datetime.datetime.now().strftime('%H:%M:%S.%f')
+                SendArray = [temperatureMotor]
             
+
             print log_String
             logging.info(log_String)
 
             #Send Data over network
-            SendArray = [temperatureMotor, temperatureRoom, humidityRoom]
             sock.sendto('{"temperatures": %r}'%SendArray, (UDP_IP, UDP_PORT))
 
 
