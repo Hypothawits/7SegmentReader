@@ -35,26 +35,29 @@ def SaveData():
     print "Doesn't Save Yet" 
 
 def imageIdentify(Box, Selection):
-    #Gets and processes the given box selection 
+    try: 
+        #Gets and processes the given box selection 
+        #Get box size from slider
+        Box.size = cv2.getTrackbarPos('Size',   Selection) 
+        
+        #Set the min box size
+        if Box.size <10:
+            Box.size = 10
 
-    #Get box size from slider
-    Box.size = cv2.getTrackbarPos('Size',   Selection) 
-    
-    #Set the min box size
-    if Box.size <10:
-        Box.size = 10
+        #gets and process the selection
+        Box.selection = getSelection(Box.location[0], Box.location[1], Box.size)
+        Box.selection = preprocessImage(Box.selection, 'Threshold', Selection)
+        
+        cv2.imshow(Selection, Box.selection)    #show proccesed image in selection window
+        cv2.resizeWindow(Selection, 300, 300)   #keeps the windows a set size
 
-    #gets and process the selection
-    Box.selection = getSelection(Box.location[0], Box.location[1], Box.size)
-    Box.selection = preprocessImage(Box.selection, 'Threshold', Selection)
-    
-    cv2.imshow(Selection, Box.selection)    #show proccesed image in selection window
-    cv2.resizeWindow(Selection, 300, 300)   #keeps the windows a set size
-
-    #convert image to number
-    ValueList = getValueList(Box.segCoordinates, Box.selection)
-    Value     = convertToNumber(ValueList)
-    return Value
+        #convert image to number
+        ValueList = getValueList(Box.segCoordinates, Box.selection)
+        Value     = convertToNumber(ValueList)
+        return Value
+    except:
+        print "Selection Error: Out of Bounds"
+        return None
 
 def getthresholdedimg(hsv):
     yellow = cv2.inRange(hsv, np.array((20, 100, 100)), np.array((30, 255, 255)))
