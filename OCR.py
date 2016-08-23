@@ -1,5 +1,4 @@
 #Seven Segment Reader
-# Test Merge
 import socket
 import logging
 import numpy as np
