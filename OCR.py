@@ -215,7 +215,7 @@ if __name__ == '__main__':
     # Pre process params
     erosion_iters       = ConfigSectionMap("PREPROCESS")['erode']
     extra_RoomTemp = True #Make True to enable Room Temperature data capture 
-    extra_RoomHum  = False #Make True to enable Room Humidity data capture 
+    extra_RoomHum  = True #Make True to enable Room Humidity data capture 
     ############################################################################
     # Variable Set Up
     drawing     = False         # true if mouse is pressed
@@ -485,10 +485,11 @@ if __name__ == '__main__':
             DecMotor  = Counter(DecMotorList ).most_common(1)[0][0]
 
         except:
+            Int1Motor, Int2Motor, DecMotor = None,None,None
             log_String = "No Motor Temp Found ---" + datetime.datetime.now().strftime('%H:%M:%S.%f')
             logging.warning(log_String)
-            print log_String
-            sendData = False
+            # print log_String
+            # sendData = False
 
         if extra_RoomTemp: # Find Mode if Enabled 
             try: #convert Room Temperature
@@ -500,7 +501,7 @@ if __name__ == '__main__':
                 Int1Room, Int2Room, DecRoom = None,None,None
                 log_String = "No Room Temp Found --- " + datetime.datetime.now().strftime('%H:%M:%S.%f')
                 logging.warning(log_String)
-                #thing
+                # print log_String
         if extra_RoomHum: # Find Mode if Enabled 
             try: #convert Room Humidity
                 Int1Humidity = Counter(Int1HumidityList).most_common(1)[0][0]
@@ -511,52 +512,41 @@ if __name__ == '__main__':
                 Int1Humidity, Int2Humidity, DecHumidity = None,None,None
                 log_String = "No Humidityt Found --- " + datetime.datetime.now().strftime('%H:%M:%S.%f')
                 logging.warning(log_String)
-                #thing
+                # print log_String
 
         draw()  #draw all the rectangels 
 
         ##############################################################################################
         # Send data over UDP
-        if sendData:
-            #Combine integer components and Decimal
+        
+        #Combine integer components and Decimal
+        try:
             temperatureMotor = float(10*Int1Motor + Int2Motor) + 0.1*float(DecMotor)
-            if extra_RoomTemp:
-                try:
-                    temperatureRoom  = float(10*Int1Room  + Int2Room)  + 0.1*float(DecRoom)
-                except:
-                    temperatureRoom = None
+        except:
+            temperatureMotor = None
 
-            if extra_RoomHum:
-                try:
-                    humidityRoom     = float(10*Int1Humidity + Int2Humidity) + 0.1*float(DecHumidity)
-                except:
-                    humidityRoom = None
+        if extra_RoomTemp:
+            try:
+                temperatureRoom  = float(10*Int1Room  + Int2Room)  + 0.1*float(DecRoom)
+            except:
+                temperatureRoom = None
+
+        if extra_RoomHum:
+            try:
+                humidityRoom     = float(10*Int1Humidity + Int2Humidity) + 0.1*float(DecHumidity)
+            except:
+                humidityRoom = None
             
-            #Procces what data is aviliable and formate correctly
-            if   temperatureMotor and temperatureRoom != None and humidityRoom != None:
-                #All values aviliable!
-                log_String = "Motor Temp: %0.1f :  Room Temp: %0.1f :  Humidity: %0.1f --- "%(temperatureMotor, temperatureRoom, humidityRoom) + datetime.datetime.now().strftime('%H:%M:%S.%f')
-                SendArray = [temperatureMotor, temperatureRoom, humidityRoom]
+        #Create Send data array and log String
+        SendArray = [temperatureMotor, temperatureRoom, humidityRoom]
+        log_String = "Motor Temp: %r :  Room Temp: %r :  Humidity: %r --- "%(temperatureMotor, temperatureRoom, humidityRoom) + datetime.datetime.now().strftime('%H:%M:%S.%f')
+        
+        #Print and log outputed Data
+        print log_String
+        logging.info(log_String)
 
-            elif temperatureMotor and temperatureRoom != None and humidityRoom == None:    
-                # Motor and Room aviliable!
-                log_String = "Motor Temp: %0.1f :  Room Temp: %0.1f :  Humidity:      --- "%(temperatureMotor, temperatureRoom) + datetime.datetime.now().strftime('%H:%M:%S.%f')
-                SendArray = [temperatureMotor, temperatureRoom, humidityRoom]
-
-            elif temperatureMotor and temperatureRoom == None and humidityRoom != None:
-                #Motor and Humidity aviliable!
-                log_String = "Motor Temp: %0.1f :  Room Temp:      :  Humidity: %0.1f --- "%(temperatureMotor, humidityRoom) + datetime.datetime.now().strftime('%H:%M:%S.%f')
-                SendArray = [temperatureMotor, temperatureRoom, humidityRoom]
-
-            elif temperatureMotor and temperatureRoom == None and humidityRoom == None:
-                #Only Motor aviliable
-                log_String = "Motor Temp: %0.1f :  Room Temp:      :  Humidity:      --- "%(temperatureMotor) + datetime.datetime.now().strftime('%H:%M:%S.%f')
-                SendArray = [temperatureMotor, temperatureRoom, humidityRoom]
-
-            #Print and log outputed Data
-            print log_String
-            logging.info(log_String)
-
+        #Check if there are Values to Send, and if there are any values, send them.
+        if (temperatureMotor != None) or (temperatureRoom != None) or (humidityRoom != None):
             #Send Data over network
             sock.sendto('{"temperatures": %r}'%SendArray, (UDP_IP, UDP_PORT))
 
@@ -566,7 +556,7 @@ if __name__ == '__main__':
             if stopOpenCv:
                 break
 
-        else: # if send data is false, do nothing and restart loop.
+        else: # if none values to send do nothing and restart loop.
             c = cv.WaitKey(1)
             if c == "q":
                 break
