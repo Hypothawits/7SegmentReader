@@ -162,8 +162,7 @@ class segBox:
     selection      = []
 
     #Point location coordinates
-    A,B,C,D,E,F,G = [0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]
-    segCoordinates = [A,B,C,D,E,F,G]
+    segCoordinates = []
 
     #Set starting location and size
     size     = 10
@@ -183,7 +182,7 @@ class segBox:
         self.E = [int(self.size*2*float(self.ex)),int(self.size*2*float(self.ey))]
         self.F = [int(self.size*2*float(self.fx)),int(self.size*2*float(self.fy))]
         self.G = [int(self.size*2*float(self.gx)),int(self.size*2*float(self.gy))]
-        segCoordinates = [self.A,self.B,self.C,self.D,self.E,self.F,self.G]
+        self.segCoordinates = [self.A,self.B,self.C,self.D,self.E,self.F,self.G]
 
         #draw rectangle arround selection
         cv2.rectangle(frame, (self.location[0] -self.size, self.location[1] -self.size),\
