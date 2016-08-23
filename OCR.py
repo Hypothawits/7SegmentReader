@@ -52,7 +52,7 @@ def imageIdentify(Box, Selection):
     cv2.resizeWindow(Selection, 300, 300)   #keeps the windows a set size
 
     #convert image to number
-    ValueList = getValueList(Box.segCoordinates,Box.selection)
+    ValueList = getValueList(Box.segCoordinates, Box.selection)
     Value     = convertToNumber(ValueList)
     return Value
 
@@ -79,25 +79,30 @@ def getSelection(startX, startY, size):
     selection = frame[startY - size:(startY + size), startX - size:(startX + size)]
     return selection
 
-def getValueList(SevenSeg, display_int1):
+def getValueList(SevenSeg, selection):
     #get the value (1/0) for each of the 7 segments
     valueList = []
     #Get A value
     for Seg in SevenSeg:
-        valueList.append(SegValue(Seg, display_int1))
+        valueList.append(SegValue(Seg, selection))
     return valueList
 
-def SegValue(Seg, display_int1):
+def SegValue(Seg, selection):
     x,y = Seg[0],Seg[1]
     try:
-        if display_int1[y,x].any(): #if any value not zero, white pixel
+        if selection[y,x].any(): #if any value not zero, white pixel
             return 0
         else:
             return 1
     except:
-        return 0
+        # print selection
+        # print selection.shape
+        # print "X:%r  Y:%r  +Error"%(x,y)
+        # print " "
+        return 5
 
 def convertToNumber(X):
+    # print X
     if X == [1,1,1,1,1,1,0]:
         return 0
     if X == [0,1,1,0,0,0,0]:
@@ -170,11 +175,15 @@ class segBox:
     def drawBoxRectangle(self):
         origin   = [self.location[0] - self.size, self.location[1] - self.size]
 
-        #convert to absolute pixel location within box (top left being origin)
-        i = 0   #first 
-        for coordinates in self.segmentLocations:
-            self.segCoordinates[i] = [int(self.size*2*float(coordinates[0])),int(self.size*2*float(coordinates[1]))]
-            i +=1
+        #convert to pixel location within box (top left being origin)
+        self.A = [int(self.size*2*float(self.ax)),int(self.size*2*float(self.ay))]
+        self.B = [int(self.size*2*float(self.bx)),int(self.size*2*float(self.by))]
+        self.C = [int(self.size*2*float(self.cx)),int(self.size*2*float(self.cy))]
+        self.D = [int(self.size*2*float(self.dx)),int(self.size*2*float(self.dy))]
+        self.E = [int(self.size*2*float(self.ex)),int(self.size*2*float(self.ey))]
+        self.F = [int(self.size*2*float(self.fx)),int(self.size*2*float(self.fy))]
+        self.G = [int(self.size*2*float(self.gx)),int(self.size*2*float(self.gy))]
+        segCoordinates = [self.A,self.B,self.C,self.D,self.E,self.F,self.G]
 
         #draw rectangle arround selection
         cv2.rectangle(frame, (self.location[0] -self.size, self.location[1] -self.size),\
@@ -483,7 +492,6 @@ if __name__ == '__main__':
             Int1Motor = Counter(Int1MotorList).most_common(1)[0][0]
             Int2Motor = Counter(Int2MotorList).most_common(1)[0][0]
             DecMotor  = Counter(DecMotorList ).most_common(1)[0][0]
-
         except:
             Int1Motor, Int2Motor, DecMotor = None,None,None
             log_String = "No Motor Temp Found ---" + datetime.datetime.now().strftime('%H:%M:%S.%f')
