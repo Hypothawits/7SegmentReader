@@ -1,17 +1,18 @@
-#!/usr/bin/env python
-
-import tesseract
+#Seven Segment Reader
+#
+import socket
+import logging
 import numpy as np
 import cv2
 import cv2.cv as cv
 import time
 import datetime
-from time import strftime
-from collections import Counter
+from   time import strftime
+from   collections import Counter
 import ConfigParser
 
-
 def ConfigSectionMap(section):
+    #Gets the Config values from the config.ini file
     global Config
     dict1 = {}
     options = Config.options(section)
@@ -25,70 +26,36 @@ def ConfigSectionMap(section):
             dict1[option] = None
     return dict1
 
-
-def SaveImage(event):
-    global display
-    params = list()
-    params.append(cv.CV_IMWRITE_PNG_COMPRESSION)
-    params.append(8)
-    filename = datetime.datetime.now().strftime('%y%m%d%H%M%S_%f') + ".png"
-    cv2.imwrite(filename, display, params)
-
-
 def OnClose(event):
+    #Sets the program to stop camera capture and close 
     global stopOpenCv
     stopOpenCv = True
 
+def SaveData():
+    #Does not do anything yet
+    print "Doesn't Save Yet" 
 
-def Recognize(iplimage):
-    global meas_stack
-    tesseract.SetCvImage(iplimage, api)
+def imageIdentify(Box, Selection):
+    #Gets and processes the given box selection 
 
-    try:
-        full_text = api.GetUTF8Text()
-    except AttributeError:
-        full_text = api.GetUNLVText().replace("^", "")
+    #Get box size from slider
+    Box.size = cv2.getTrackbarPos('Size',   Selection) 
+    
+    #Set the min box size
+    if Box.size <10:
+        Box.size = 10
 
-    conf = api.MeanTextConf()
-    # Ger the first line found by tesseract
-    for index, text in enumerate(full_text.split('\n')):
-        # Some char filter
-        text = text.replace(" ", "")
-        for char in ConfigSectionMap("POSPROCESS")['strip']:
-            text = text.replace(char, "")
-        try:
-            text_val = float(text)
-            # handle OCRed value if exists an expected value prvided by user
-            if expected_value != "":
-                up_limit = (float(expected_value)) * (1 + (float(expected_value_desv) / 100))
-                dn_limit = (float(expected_value)) * (1 - (float(expected_value_desv) / 100))
-                if (
-                    len(text) > 0 and
-                    text_val > dn_limit and
-                    text_val < up_limit
-                ):
-                    pass
-                else:
-                    return 0
-            # most common filter valur
+    #gets and process the selection
+    Box.selection = getSelection(Box.location[0], Box.location[1], Box.size)
+    Box.selection = preprocessImage(Box.selection, 'Threshold', Selection)
+    
+    cv2.imshow(Selection, Box.selection)    #show proccesed image in selection window
+    cv2.resizeWindow(Selection, 300, 300)   #keeps the windows a set size
 
-            most_common_filter_pos = cv2.getTrackbarPos('Filter', 'frame')
-            # add last text
-            meas_stack.append(text)
-            if len(meas_stack) > most_common_filter_pos:
-                # remove old
-                meas_stack = meas_stack[-(most_common_filter_pos + 1):]
-                # count most frequent value
-                count = Counter(meas_stack)
-                out = count.most_common()[0][0]
-                ## show if the last is the most common
-                # if out == meas_stack[-1]:
-                print "Timestamp: " + datetime.datetime.now().strftime('%y%m%d%H%M%S_%f')
-                print "Line " + str(index)
-                print out
-        except:
-            pass
-
+    #convert image to number
+    ValueList = getValueList(Box.segCoordinates, Box.selection)
+    Value     = convertToNumber(ValueList)
+    return Value
 
 def getthresholdedimg(hsv):
     yellow = cv2.inRange(hsv, np.array((20, 100, 100)), np.array((30, 255, 255)))
@@ -96,135 +63,516 @@ def getthresholdedimg(hsv):
     both = cv2.add(yellow, blue)
     return both
 
+def preprocessImage(imageSelection, X, frame):
+    #preprocesses the selection by removing things 
+
+    imageSelection  = cv2.cvtColor(imageSelection, cv2.COLOR_BGR2GRAY)  #Make GreyScale
+    thresh          = cv2.getTrackbarPos(X, frame)                      #Get threshold from slider
+    imageSelection  = cv2.threshold(imageSelection, thresh, 255, cv2.THRESH_BINARY)[1]
+    
+    kernel          = np.ones((5, 5), np.uint8)
+    erosion_iters   = cv2.getTrackbarPos('Erode', 'frame')
+    imageSelection  = cv2.erode(imageSelection, kernel, iterations = erosion_iters)
+    return imageSelection
+
+def getSelection(startX, startY, size):
+    #gets the selection from the main image
+    selection = frame[startY - size:(startY + size), startX - size:(startX + size)]
+    return selection
+
+def getValueList(SevenSeg, selection):
+    #get the value (1/0) for each of the 7 segments
+    valueList = []
+    #Get A value
+    for Seg in SevenSeg:
+        valueList.append(SegValue(Seg, selection))
+    return valueList
+
+def SegValue(Seg, selection):
+    x,y = Seg[0],Seg[1]
+    try:
+        if selection[y,x].any(): #if any value not zero, white pixel
+            return 0
+        else:
+            return 1
+    except:
+        # print selection
+        # print selection.shape
+        # print "X:%r  Y:%r  +Error"%(x,y)
+        # print " "
+        return 5
+
+def convertToNumber(X):
+    # print X
+    if X == [1,1,1,1,1,1,0]:
+        return 0
+    if X == [0,1,1,0,0,0,0]:
+        return 1
+    if X == [1,1,0,1,1,0,1]:
+        return 2
+    if X == [1,1,1,1,0,0,1]:
+        return 3
+    if X == [0,1,1,0,0,1,1]:
+        return 4
+    if X == [1,0,1,1,0,1,1]:
+        return 5
+    if X == [1,0,1,1,1,1,1]:
+        return 6
+    if X == [1,1,1,0,0,0,0]:
+        return 7
+    if X == [1,1,1,1,1,1,1]:
+        return 8    
+    if X == [1,1,1,1,0,1,1]:
+        return 9
+    else:
+        return None
+
+def draw():
+    #Draw Rectangle and Location Points
+    #must be done after the selections are made, 
+    #or the boxs and points will appear in the processed image!
+    Motor_IntBox1.drawBoxRectangle()
+    Motor_IntBox2.drawBoxRectangle()
+    Motor_DecimalBox.drawBoxRectangle()
+    
+    if extra_RoomTemp: #draw boxes if enabled
+        Room_IntBox1.drawBoxRectangle()
+        Room_IntBox2.drawBoxRectangle()
+        Room_DecimalBox.drawBoxRectangle()
+    if extra_RoomHum:  #draw boxes if enabled  
+        Humidity_IntBox1.drawBoxRectangle()
+        Humidity_IntBox2.drawBoxRectangle()
+        Humidity_DecimalBox.drawBoxRectangle()
+
+    cv2.imshow('frame', frame)
+
+class segBox:
+    #creates the frame and 7 seg point overlay for each selection 
+
+    #Segment relative locations
+    ax,ay = 0.50, 0.15
+    bx,by = 0.65, 0.25
+    cx,cy = 0.63, 0.65
+    dx,dy = 0.46, 0.85
+    ex,ey = 0.35, 0.65
+    fx,fy = 0.36, 0.25
+    gx,gy = 0.50, 0.50
+    segmentLocations = [[ax,ay],[bx,by],[cx,cy],[dx,dy],[ex,ey],[fx,fy],[gx,gy]]
+
+    #For storing image selection
+    selection      = []
+
+    #Point location coordinates
+    A,B,C,D,E,F,G = [0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]
+    segCoordinates = [A,B,C,D,E,F,G]
+
+    #Set starting location and size
+    size     = 10
+    location = [200, 200]
+    
+    def __init__(self, colour):
+        self.colour = colour
+
+    def drawBoxRectangle(self):
+        origin   = [self.location[0] - self.size, self.location[1] - self.size]
+
+        #convert to pixel location within box (top left being origin)
+        self.A = [int(self.size*2*float(self.ax)),int(self.size*2*float(self.ay))]
+        self.B = [int(self.size*2*float(self.bx)),int(self.size*2*float(self.by))]
+        self.C = [int(self.size*2*float(self.cx)),int(self.size*2*float(self.cy))]
+        self.D = [int(self.size*2*float(self.dx)),int(self.size*2*float(self.dy))]
+        self.E = [int(self.size*2*float(self.ex)),int(self.size*2*float(self.ey))]
+        self.F = [int(self.size*2*float(self.fx)),int(self.size*2*float(self.fy))]
+        self.G = [int(self.size*2*float(self.gx)),int(self.size*2*float(self.gy))]
+        segCoordinates = [self.A,self.B,self.C,self.D,self.E,self.F,self.G]
+
+        #draw rectangle arround selection
+        cv2.rectangle(frame, (self.location[0] -self.size, self.location[1] -self.size),\
+                             (self.location[0] +self.size, self.location[1] +self.size),\
+                              self.colour, 1) 
+
+        #draw indicator for each segment location 
+        for point in self.segCoordinates:
+            cv2.circle(frame, (origin[0] + point[0], origin[1] + point[1]), 1 , (0, 0, 255), -1)
+
+        #Update Window
+        cv2.imshow('frame', frame)
+
+class SelectionFrame:
+    #Creates a window with threshold and selection size sliders
+    global Config
+    Config = ConfigParser.ConfigParser()
+    Config.read("./config.ini")
+
+    thresh   = ConfigSectionMap("PREPROCESS")['threshold']
+    box_size = ConfigSectionMap("PREPROCESS")['size']
+
+    def __init__(self, name):
+        self.name = name
+        cv2.namedWindow(name)
+        self.display   = np.zeros((200, 200, 3), np.uint8)
+        cv2.createTrackbar('Threshold', name,    int(self.thresh),   255, nothing)
+        cv2.createTrackbar('Size',      name,    int(self.box_size), 150,  nothing)
+        cv2.imshow('frame', self.display)
+
+print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+print "Start Programe"
+
 if __name__ == '__main__':
     Config = ConfigParser.ConfigParser()
     Config.read("./config.ini")
     ############################################################################
     # Pre process params
-    thresh = ConfigSectionMap("PREPROCESS")['threshold']
-    erosion_iters = ConfigSectionMap("PREPROCESS")['erode']
-    most_common_filter = ConfigSectionMap("POSPROCESS")['filter']
-    drawing = False  # true if mouse is pressed
-    start_x, start_y = -1, -1
-    end_x, end_y = 1, 1
-    # flag to stop opencv
-    stopOpenCv = False
-    # user assist vars
-    expected_value = ""
-    expected_value_desv = 20
+    erosion_iters       = ConfigSectionMap("PREPROCESS")['erode']
+    extra_RoomTemp = True #Make True to enable Room Temperature data capture 
+    extra_RoomHum  = True #Make True to enable Room Humidity data capture 
     ############################################################################
+    # Variable Set Up
+    drawing     = False         # true if mouse is pressed
+    Draw_FIntM  = True
+    Draw_SIntM  = False
+    Draw_FDecM  = False
+    Row1        = True
+    Row2, Row3  = False, False
+    stopOpenCv  = False         # flag to stop opencv
+
+    #initialize to None
+    temperatureMotor    = None
+    temperatureRoom     = None
+    humidityRoom        = None
+    ############################################################################
+    # UDP Set Up
+    # UDP_IP = "10.1.18.236"
+    UDP_IP = "127.0.0.1"
+    UDP_PORT = 8100
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
+    ############################################################################
+    # Logging Set Up
+    logging.basicConfig(filename = 'Consol.log', format = '%(levelname)s %(message)s', level = logging.DEBUG)
+    logging.info('~~~~~~ Start Log ~~~~~~   ' + datetime.datetime.now().strftime('%y/%m/%d  %H:%M:%S.%f'))
+    #############################################################################
     # Video capture
     cap = cv2.VideoCapture(0)
-    # Tesseract config
-    api = tesseract.TessBaseAPI()
-    api.Init(".", ConfigSectionMap("OCR")['fonttype'], tesseract.OEM_DEFAULT)
-    api.SetVariable("tessedit_char_whitelist", ConfigSectionMap("OCR")['whitelist'])
-    api.SetPageSegMode(tesseract.PSM_AUTO)
-    api.SetVariable("debug_file", "/dev/null")
+    cap.set(cv.CV_CAP_PROP_CONTRAST, 150.0)
+    cap.set(cv.CV_CAP_PROP_EXPOSURE, 6.0)
+    cap.set(cv.CV_CAP_PROP_BRIGHTNESS, 200)
+    #############################################################################
 
     def nothing(x):
         pass
 
     # mouse callback function
-    def draw_rectangle(event, x, y, flags, param):
-        global start_x, start_y, end_x, end_y, drawing, expected_value
+    def mouseEvent(event, x, y, flags, param):
+        global Row1, Row2, Row3, drawing      
+        global Draw_FIntM, Draw_SIntM, Draw_FDecM
+        global Draw_FIntR, Draw_SIntR, Draw_FDecR
+        global Draw_FIntH, Draw_SIntH, Draw_FDecH
+
         if event == cv2.EVENT_LBUTTONDOWN:
             # menu position
             if y < 40:
-                # menu map
-                if x > 8 and x < 148:
-                    SaveImage(event)
-                if x > 153 and x < 190:
+                # menu map, First row Motor Temp
+                Row1 = True
+                Row2,Row3 = False,False
+
+                if x > 3 and x < 40:
                     OnClose(event)
-                if x > 195 and x < 252:
-                    print "OpenSource Development: https://github.com/arturaugusto/display_ocr.\nBased on examples availables at https://code.google.com/p/python-tesseract/.\nGPLv2 License"
+                if x > 45 and x < 105:
+                    print "Select which digit you would like to set up from the menu."
+                    print "Move the box and adjust the size so that is covers the digit,"
+                    print "each on the red dots should fall within each of the 7 segments."
+                    print "Adjust the threshold slider for each selection so that the number is clearly"
+                    print "visible with as little noise as possible."
+                if x > 110 and x < 205:
+                    SaveData()
+
+                # Selection Control buttons
+                if x > 230 and x < 270:
+                    # print "first Int Motor"
+                    Draw_FIntM = True
+                    Draw_SIntM, Draw_FDecM = False,False                
+                if x > 276 and x < 312:
+                    # print "second Int Motor"
+                    Draw_SIntM = True
+                    Draw_FIntM, Draw_FDecM = False,False
+                if x > 340 and x < 380:
+                    # print "first decimal Motor"
+                    Draw_FDecM = True
+                    Draw_FIntM, Draw_SIntM = False,False
+
+            elif (y > 40)and(y < 80):
+                #menu map, Second row Room Temp
+                Row2 = True
+                Row1, Row3 = False, False
+                if x > 230 and x < 270:
+                    # print "first Int Room"
+                    Draw_FIntR = True
+                    Draw_SIntR, Draw_FDecR = False,False
+                if x > 276 and x < 312:
+                    # print "second Int Room"
+                    Draw_SIntR = True
+                    Draw_FIntR, Draw_FDecR = False,False
+
+                if x > 340 and x < 380:
+                    # print "first decimal Room"
+                    Draw_FDecR = True
+                    Draw_FIntR, Draw_SIntR = False,False
+
+            elif (y > 80)and(y < 120):
+                #menu map, Third row Humidity
+                Row3 = True
+                Row1, Row2 = False,False
+                if x > 230 and x < 270:
+                    # print "first Int Humidity"
+                    Draw_FIntH = True
+                    Draw_SIntH, Draw_FDecH = False,False
+                if x > 276 and x < 312:
+                    # print "second Int Humidity"
+                    Draw_SIntH = True
+                    Draw_FIntH, Draw_FDecH = False,False
+
+                if x > 340 and x < 380:
+                    # print "first decimal Humidity"
+                    Draw_FDecH = True
+                    Draw_FIntH, Draw_SIntH = False,False
+
+            #Get mouse location for Drawing Selecion Boxes
             else:
                 drawing = True
-                start_x, start_y = x, y
-                end_x, end_y = x, y
-        elif event == cv2.EVENT_LBUTTONUP:
-            drawing = False
-            #start_x,start_y = -1,-1
-            #end_x,end_y = -1,-1
+                if Row1:    #Motor Temp
+                    if (Draw_FIntM):
+                        Motor_IntBox1.location = [x, y]
+                    if (Draw_SIntM):
+                        Motor_IntBox2.location = [x, y]
+                    if (Draw_FDecM):
+                        Motor_DecimalBox.location = [x, y]
+                
+                if Row2:    #Room Temp
+                    if (Draw_FIntR):
+                        Room_IntBox1.location = [x, y]
+                    if (Draw_SIntR):
+                        Room_IntBox2.location = [x, y]
+                    if (Draw_FDecR):
+                        Room_DecimalBox.location = [x, y]
+                
+                if Row3:    #Room umidity
+                    if (Draw_FIntH):
+                        Humidity_IntBox1.location = [x, y]
+                    if (Draw_SIntH):
+                        Humidity_IntBox2.location = [x, y]
+                    if (Draw_FDecH):
+                        Humidity_DecimalBox.location = [x, y]
+
+        #Move selection with mouse (while clicked)
         elif event == cv2.EVENT_MOUSEMOVE and drawing:
-            if y < 40:
-                end_x, end_y = x, 41
-            else:
-                end_x, end_y = x, y
+            if Row1:    #Motor Temp
+                if (Draw_FIntM):
+                    Motor_IntBox1.location = [x, y]
+                if (Draw_SIntM):
+                    Motor_IntBox2.location = [x, y]
+                if (Draw_FDecM):
+                    Motor_DecimalBox.location = [x, y]
+            
+            if Row2:    #Room Temp
+                if (Draw_FIntR):
+                    Room_IntBox1.location = [x, y]
+                if (Draw_SIntR):
+                    Room_IntBox2.location = [x, y]
+                if (Draw_FDecR):
+                    Room_DecimalBox.location = [x, y]
+            
+            if Row3:    #Room umidity
+                if (Draw_FIntH):
+                    Humidity_IntBox1.location = [x, y]
+                if (Draw_SIntH):
+                    Humidity_IntBox2.location = [x, y]
+                if (Draw_FDecH):
+                    Humidity_DecimalBox.location = [x, y]
 
+        elif event == cv2.EVENT_LBUTTONUP:
+            drawing = False 
+
+    #############################################################################
+    # GUI and Window Set Up
+    # show main window and add it's trackbar
     cv2.namedWindow('frame')
-    # Show black image as selected at first
-    cv2.namedWindow('selection')
-    display = np.zeros((200, 200, 3), np.uint8)
-    cv2.imshow('frame', display)
+    cv2.createTrackbar('Erode', 'frame', int(erosion_iters),       4,   nothing)
 
-    # GUI
-    cv2.createTrackbar('Threshold', 'frame', int(thresh), 255, nothing)
-    cv2.createTrackbar('Erode', 'frame', int(erosion_iters), 4, nothing)
-    cv2.createTrackbar('Filter', 'frame', int(most_common_filter), 10, nothing)
-    # menu image
+    # Create selection frames. Each set is for a 2 digit number with 1 decimal
+    Int_selection_1_motor = SelectionFrame('Motor_Int1')
+    Int_selection_2_motor = SelectionFrame('Motor_Int2')
+    Dec_selection_motor   = SelectionFrame('Motor_Decimal')
+
+    if extra_RoomTemp: #only create frames if option enabled
+        Int_selection_1_room = SelectionFrame('Room_Int1')
+        Int_selection_2_room = SelectionFrame('Room_Int2')
+        Dec_selection_room   = SelectionFrame('Room_Decimal')
+
+    if extra_RoomHum:
+        Int_selection_1_Humidity = SelectionFrame('Humidity_Int1')
+        Int_selection_2_Humidity = SelectionFrame('Humidity_Int2')
+        Dec_selection_Humidity   = SelectionFrame('Humidity_Decimal')
+
+    # Load Menu Image and Set up mouse callback
     menu = cv2.imread("menu.png")
-    cv2.setMouseCallback('frame', draw_rectangle)
+    cv2.setMouseCallback('frame', mouseEvent)
 
-    # stack
-    meas_stack = []
-    phase_stack = []
-    time_stack = []
-    phase_stack_size = 4
-    control_moving = False
-    moviment_trigger = 40
+    #create Boxes
+    Motor_IntBox1       = segBox((0,255,0))
+    Motor_IntBox2       = segBox((0,245,0))
+    Motor_DecimalBox    = segBox((0,235,0))
+
+    Room_IntBox1        = segBox((0,185,255))
+    Room_IntBox2        = segBox((0,175,245))
+    Room_DecimalBox     = segBox((0,165,235))
+
+    Humidity_IntBox1    = segBox((255,185,0))
+    Humidity_IntBox2    = segBox((245,175,0))
+    Humidity_DecimalBox = segBox((235,165,0))
+ 
+#Main Loop
     while True:
-        # Capture frame-by-frame
+        # Capture frame-by-frame, Frame is the whole image captured
         ret, frame = cap.read()
+        #Check that Image was captured
         if frame is None:
+            print 'ERROR: Frame is None, Camera not Found'
+            logging.critical('Frame is None, Camera not Found')
             break
-        # add menu
-        frame_h, frame_w = frame.shape[:2]
+        
+        # Draw menu over Frame
         frame[0:menu.shape[0], 0:menu.shape[1]] = menu
         ########################################################################
-        # ROI
-        ########################################################################
+        # ROI Regions of Interest
+        Int1MotorList, Int1RoomList, Int1HumidityList = [],[],[]
+        Int2MotorList, Int2RoomList, Int2HumidityList = [],[],[]
+        DecMotorList,  DecRoomList,  DecHumidityList  = [],[],[]
+        sendData = True     #Make false to stop UDP data sending
 
-        cv2.rectangle(frame, (start_x, start_y), (end_x, end_y), (0, 255, 0), 1)
-        # selection region
-        min_x = min(start_x, end_x)
-        max_x = max(start_x, end_x)
+        #Create a list of 10 values and find the mode. 
+        #If no value is found, dont add to the list
+        for i in range(0, 10, +1):
+          #Temperature Motor
+            tempx = imageIdentify(Motor_IntBox1,    'Motor_Int1')
+            tempy = imageIdentify(Motor_IntBox2,    'Motor_Int2')
+            tempz = imageIdentify(Motor_DecimalBox, 'Motor_Decimal')
+            if tempx != None:
+                Int1MotorList.append(tempx)          
+            if tempy != None:
+                Int2MotorList.append(tempy)
+            if tempz != None:
+                DecMotorList.append(tempz)
 
-        min_y = min(start_y, end_y)
-        max_y = max(start_y, end_y)
+            if extra_RoomTemp:
+              #Temperature Room
+                tempx = imageIdentify(Room_IntBox1,    'Room_Int1')
+                tempy = imageIdentify(Room_IntBox2,    'Room_Int2')
+                tempz = imageIdentify(Room_DecimalBox, 'Room_Decimal')
+                if tempx != None:
+                    Int1RoomList.append(tempx)          
+                if tempy != None:
+                    Int2RoomList.append(tempy)
+                if tempz != None:
+                    DecRoomList.append(tempz)
 
-        display = frame[min_y:max_y, min_x:max_x]
-        height, width, channel = display.shape
+            if extra_RoomHum:
+              #Humidity
+                tempx = imageIdentify(Humidity_IntBox1,    'Humidity_Int1')
+                tempy = imageIdentify(Humidity_IntBox2,    'Humidity_Int2')
+                tempz = imageIdentify(Humidity_DecimalBox, 'Humidity_Decimal')
+                if tempx != None:
+                    Int1HumidityList.append(tempx)          
+                if tempy != None:
+                    Int2HumidityList.append(tempy)
+                if tempz != None:
+                    DecHumidityList.append(tempz)
 
-        # Show frame
-        cv2.imshow('frame', frame)
-        ########################################################################
-        # OCR work
-        ########################################################################
+        #finds the mode of the Lists, if list is empty throws an ERROR and 
+        #sendData is set to false. The program then trys bypassing the 1 second wait. 
+        try: #convert Motor Temperature
+            Int1Motor = Counter(Int1MotorList).most_common(1)[0][0]
+            Int2Motor = Counter(Int2MotorList).most_common(1)[0][0]
+            DecMotor  = Counter(DecMotorList ).most_common(1)[0][0]
+        except:
+            Int1Motor, Int2Motor, DecMotor = None,None,None
+            log_String = "No Motor Temp Found ---" + datetime.datetime.now().strftime('%H:%M:%S.%f')
+            logging.warning(log_String)
+            # print log_String
+            # sendData = False
 
-        if (height > 10) and (width > 10):
-            # Display selection on other window
-            channel = 1
-            display = cv2.cvtColor(display, cv2.COLOR_BGR2GRAY)
-            thresh = cv2.getTrackbarPos('Threshold', 'frame')
-            display = cv2.threshold(display, thresh, 255, cv2.THRESH_BINARY)[1]
-            kernel = np.ones((5, 5), np.uint8)
-            erosion_iters = cv2.getTrackbarPos('Erode', 'frame')
-            display = cv2.erode(display, kernel, iterations=erosion_iters)
-            # Show selection
-            cv2.imshow('selection', display)
-            #image = wx.ImageFromStream(f)
-            #bitmap = wx.BitmapFromImage(image)
-            #static_bitmap.SetBitmap(bitmap)
-            iplimage = cv.CreateImageHeader((width, height), cv.IPL_DEPTH_8U, channel)
-            cv.SetData(iplimage, display.tostring(), display.dtype.itemsize * channel * (width))
-            Recognize(iplimage)
-        c = cv.WaitKey(20)
-        if c == "q":
-            break
-        if stopOpenCv:
-            break
+        if extra_RoomTemp: # Find Mode if Enabled 
+            try: #convert Room Temperature
+                Int1Room = Counter(Int1RoomList).most_common(1)[0][0]
+                Int2Room = Counter(Int2RoomList).most_common(1)[0][0]
+                DecRoom  = Counter(DecRoomList ).most_common(1)[0][0]
+            except:
+                #Set Values to None
+                Int1Room, Int2Room, DecRoom = None,None,None
+                log_String = "No Room Temp Found --- " + datetime.datetime.now().strftime('%H:%M:%S.%f')
+                logging.warning(log_String)
+                # print log_String
+        if extra_RoomHum: # Find Mode if Enabled 
+            try: #convert Room Humidity
+                Int1Humidity = Counter(Int1HumidityList).most_common(1)[0][0]
+                Int2Humidity = Counter(Int2HumidityList).most_common(1)[0][0]
+                DecHumidity  = Counter(DecHumidityList ).most_common(1)[0][0]
+            except:
+                #Set Values to None
+                Int1Humidity, Int2Humidity, DecHumidity = None,None,None
+                log_String = "No Humidityt Found --- " + datetime.datetime.now().strftime('%H:%M:%S.%f')
+                logging.warning(log_String)
+                # print log_String
+
+        draw()  #draw all the rectangels 
+
+        ##############################################################################################
+        # Send data over UDP
+        
+        #Combine integer components and Decimal
+        try:
+            temperatureMotor = float(10*Int1Motor + Int2Motor) + 0.1*float(DecMotor)
+        except:
+            temperatureMotor = None
+
+        if extra_RoomTemp:
+            try:
+                temperatureRoom  = float(10*Int1Room  + Int2Room)  + 0.1*float(DecRoom)
+            except:
+                temperatureRoom = None
+
+        if extra_RoomHum:
+            try:
+                humidityRoom     = float(10*Int1Humidity + Int2Humidity) + 0.1*float(DecHumidity)
+            except:
+                humidityRoom = None
+            
+        #Create Send data array and log String
+        SendArray = [temperatureMotor, temperatureRoom, humidityRoom]
+        log_String = "Motor Temp: %r :  Room Temp: %r :  Humidity: %r --- "%(temperatureMotor, temperatureRoom, humidityRoom) + datetime.datetime.now().strftime('%H:%M:%S.%f')
+        
+        #Print and log outputed Data
+        print log_String
+        logging.info(log_String)
+
+        #Check if there are Values to Send, and if there are any values, send them.
+        if (temperatureMotor != None) or (temperatureRoom != None) or (humidityRoom != None):
+            #Send Data over network
+            sock.sendto('{"temperatures": %r}'%SendArray, (UDP_IP, UDP_PORT))
+
+            c = cv.WaitKey(1000)
+            if c == "q":
+                break
+            if stopOpenCv:
+                break
+
+        else: # if none values to send do nothing and restart loop.
+            c = cv.WaitKey(1)
+            if c == "q":
+                break
+            if stopOpenCv:
+                break
+
     # When everything done, release the capture
     cap.release()
     cv2.destroyAllWindows()
-
+    logging.info('~~~~~~ End Log ~~~~~~' + datetime.datetime.now().strftime('%y/%m/%d  %H:%M:%S.%f'))
