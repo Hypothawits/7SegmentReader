@@ -34,44 +34,39 @@ def SaveData():
     #Does not do anything yet
     print "Doesn't Save Yet" 
 
-def imageIdentify(Box, Selection):
+def imageIdentify(Box):
+    global config
     try: 
         #Gets and processes the given box selection 
-        #Get box size from slider
-        Box.size = cv2.getTrackbarPos('Size',   Selection) 
-        
+        #Get box size from  it's slider
+        Selection_Frame = Box.name    #Selection Frame and Box share Name
+        Box.size  = cv2.getTrackbarPos('Size',   Selection_Frame) 
+        Box.threshold = cv2.getTrackbarPos('Threshold', Selection_Frame)  
+
         #Set the min box size
         if Box.size <10:
             Box.size = 10
 
         #gets and process the selection
         Box.selection = getSelection(Box.location[0], Box.location[1], Box.size)
-        Box.selection = preprocessImage(Box.selection, 'Threshold', Selection)
+        Box.selection = preprocessImage(Box.selection, Selection_Frame, Box.threshold)
         
-        cv2.imshow(Selection, Box.selection)    #show proccesed image in selection window
-        cv2.resizeWindow(Selection, 300, 300)   #keeps the windows a set size
+        cv2.imshow(Selection_Frame, Box.selection)    #show proccesed image in selection window
+        cv2.resizeWindow(Selection_Frame, 300, 300)   #keeps the windows a set size
 
         #convert image to number
         ValueList = getValueList(Box.segCoordinates, Box.selection)
         Value     = convertToNumber(ValueList)
+
         return Value
     except:
         print "Selection Error: Out of Bounds"
         return None
 
-def getthresholdedimg(hsv):
-    yellow = cv2.inRange(hsv, np.array((20, 100, 100)), np.array((30, 255, 255)))
-    blue = cv2.inRange(hsv, np.array((100, 100, 100)), np.array((120, 255, 255)))
-    both = cv2.add(yellow, blue)
-    return both
-
-def preprocessImage(imageSelection, X, frame):
-    #preprocesses the selection by removing things 
-
+def preprocessImage(imageSelection, frame, thresh):
+    #preprocesses the selection by removing values below threshold 
     imageSelection  = cv2.cvtColor(imageSelection, cv2.COLOR_BGR2GRAY)  #Make GreyScale
-    thresh          = cv2.getTrackbarPos(X, frame)                      #Get threshold from slider
     imageSelection  = cv2.threshold(imageSelection, thresh, 255, cv2.THRESH_BINARY)[1]
-    
     kernel          = np.ones((5, 5), np.uint8)
     erosion_iters   = cv2.getTrackbarPos('Erode', 'frame')
     imageSelection  = cv2.erode(imageSelection, kernel, iterations = erosion_iters)
@@ -98,14 +93,13 @@ def SegValue(Seg, selection):
         else:
             return 1
     except:
-        # print selection
-        # print selection.shape
-        # print "X:%r  Y:%r  +Error"%(x,y)
-        # print " "
+        #for debuging, should never happen
         return 5
 
 def convertToNumber(X):
-    # print X
+    #Uncomment for values less than 10
+    # if X == [0,0,0,0,0,0,0]:
+    #     return 0
     if X == [1,1,1,1,1,1,0]:
         return 0
     if X == [0,1,1,0,0,0,0]:
@@ -133,18 +127,18 @@ def draw():
     #Draw Rectangle and Location Points
     #must be done after the selections are made, 
     #or the boxs and points will appear in the processed image!
-    Motor_IntBox1.drawBoxRectangle()
-    Motor_IntBox2.drawBoxRectangle()
-    Motor_DecimalBox.drawBoxRectangle()
+    G_Box1.drawBoxRectangle()
+    G_Box2.drawBoxRectangle()
+    G_Box3.drawBoxRectangle()
     
-    if extra_RoomTemp: #draw boxes if enabled
-        Room_IntBox1.drawBoxRectangle()
-        Room_IntBox2.drawBoxRectangle()
-        Room_DecimalBox.drawBoxRectangle()
-    if extra_RoomHum:  #draw boxes if enabled  
-        Humidity_IntBox1.drawBoxRectangle()
-        Humidity_IntBox2.drawBoxRectangle()
-        Humidity_DecimalBox.drawBoxRectangle()
+    if enable_orange: #draw boxes if enabled
+        O_Box1.drawBoxRectangle()
+        O_Box2.drawBoxRectangle()
+        O_Box3.drawBoxRectangle()
+    if enable_blue:  #draw boxes if enabled  
+        B_Box1.drawBoxRectangle()
+        B_Box2.drawBoxRectangle()
+        B_Box3.drawBoxRectangle()
 
     cv2.imshow('frame', frame)
 
@@ -168,11 +162,16 @@ class segBox:
     segCoordinates = []
 
     #Set starting location and size
-    size     = 10
-    location = [200, 200]
+    size      = 10
+    threshold = 80
+    location  = [200, 200]
     
-    def __init__(self, colour):
+    def __init__(self, name, colour):
         self.colour = colour
+        self.name = name
+        self.locationx = int(ConfigSectionMap("LOCATIONS")[self.name + 'x'])
+        self.locationy = int(ConfigSectionMap("LOCATIONS")[self.name + 'y'])
+        self.location = [self.locationx, self.locationy]
 
     def drawBoxRectangle(self):
         origin   = [self.location[0] - self.size, self.location[1] - self.size]
@@ -196,22 +195,25 @@ class segBox:
         for point in self.segCoordinates:
             cv2.circle(frame, (origin[0] + point[0], origin[1] + point[1]), 1 , (0, 0, 255), -1)
 
+        #Set Nox variables to Config.ini
+        Config.set('SIZES',     self.name, self.size)
+        Config.set('THRESHOLD', self.name, self.threshold)
+        Config.set('LOCATIONS', self.name + 'x', self.location[0])
+        Config.set('LOCATIONS', self.name + 'y', self.location[1])
+
         #Update Window
         cv2.imshow('frame', frame)
 
 class SelectionFrame:
     #Creates a window with threshold and selection size sliders
-    global Config
-    Config = ConfigParser.ConfigParser()
-    Config.read("./config.ini")
-
-    thresh   = ConfigSectionMap("PREPROCESS")['threshold']
-    box_size = ConfigSectionMap("PREPROCESS")['size']
-
     def __init__(self, name):
         self.name = name
         cv2.namedWindow(name)
         self.display   = np.zeros((200, 200, 3), np.uint8)
+        
+        self.thresh   = ConfigSectionMap("THRESHOLD")[self.name]
+        self.box_size = ConfigSectionMap("SIZES")[self.name]
+
         cv2.createTrackbar('Threshold', name,    int(self.thresh),   255, nothing)
         cv2.createTrackbar('Size',      name,    int(self.box_size), 150,  nothing)
         cv2.imshow('frame', self.display)
@@ -220,31 +222,33 @@ print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 print "Start Programe"
 
 if __name__ == '__main__':
+    ############################################################################
+    # Config
     Config = ConfigParser.ConfigParser()
     Config.read("./config.ini")
-    ############################################################################
-    # Pre process params
-    erosion_iters       = ConfigSectionMap("PREPROCESS")['erode']
-    extra_RoomTemp = True #Make True to enable Room Temperature data capture 
-    extra_RoomHum  = True #Make True to enable Room Humidity data capture 
+    erosion_iters  = ConfigSectionMap("PREPROCESS")['erode']
+    
+    enable_orange = True if ConfigSectionMap("OCR")['roomtemp'] == "True" else False
+    enable_blue  = True if ConfigSectionMap("OCR")['roomhum']  == "True" else False
+
     ############################################################################
     # Variable Set Up
     drawing     = False         # true if mouse is pressed
-    Draw_FIntM  = True
-    Draw_SIntM  = False
-    Draw_FDecM  = False
-    Row1        = True
-    Row2, Row3  = False, False
+    Draw_G1     = True          # Must be initialized 
+    Draw_G2     = False         #
+    Draw_G3     = False         # 
+    Row1        = True          #
+    Row2, Row3  = False, False  #
     stopOpenCv  = False         # flag to stop opencv
 
     #initialize to None
-    temperatureMotor    = None
-    temperatureRoom     = None
-    humidityRoom        = None
+    greenValue  = None
+    orangeValue = None
+    blueValue   = None
     ############################################################################
     # UDP Set Up
     # UDP_IP = "10.1.18.236"
-    UDP_IP = "127.0.0.1"
+    UDP_IP = "127.0.0.1"    #Send to self
     UDP_PORT = 8100
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
     ############################################################################
@@ -252,7 +256,7 @@ if __name__ == '__main__':
     logging.basicConfig(filename = 'Consol.log', format = '%(levelname)s %(message)s', level = logging.DEBUG)
     logging.info('~~~~~~ Start Log ~~~~~~   ' + datetime.datetime.now().strftime('%y/%m/%d  %H:%M:%S.%f'))
     #############################################################################
-    # Video capture
+    # Video capture and Settings (Note: May not be avilible on all Cameras)
     cap = cv2.VideoCapture(0)
     cap.set(cv.CV_CAP_PROP_CONTRAST, 150.0)
     cap.set(cv.CV_CAP_PROP_EXPOSURE, 6.0)
@@ -265,9 +269,9 @@ if __name__ == '__main__':
     # mouse callback function
     def mouseEvent(event, x, y, flags, param):
         global Row1, Row2, Row3, drawing      
-        global Draw_FIntM, Draw_SIntM, Draw_FDecM
-        global Draw_FIntR, Draw_SIntR, Draw_FDecR
-        global Draw_FIntH, Draw_SIntH, Draw_FDecH
+        global Draw_G1, Draw_G2, Draw_G3
+        global Draw_O1, Draw_O2, Draw_O3
+        global Draw_B1, Draw_B2, Draw_B3
 
         if event == cv2.EVENT_LBUTTONDOWN:
             # menu position
@@ -278,117 +282,101 @@ if __name__ == '__main__':
 
                 if x > 3 and x < 40:
                     OnClose(event)
-                if x > 45 and x < 105:
+                elif x > 45 and x < 105:
                     print "Select which digit you would like to set up from the menu."
                     print "Move the box and adjust the size so that is covers the digit,"
                     print "each on the red dots should fall within each of the 7 segments."
                     print "Adjust the threshold slider for each selection so that the number is clearly"
                     print "visible with as little noise as possible."
-                if x > 110 and x < 205:
+                elif x > 110 and x < 205:
                     SaveData()
 
                 # Selection Control buttons
-                if x > 230 and x < 270:
+                elif x > 230 and x < 270:
                     # print "first Int Motor"
-                    Draw_FIntM = True
-                    Draw_SIntM, Draw_FDecM = False,False                
-                if x > 276 and x < 312:
+                    Draw_G1 = True
+                    Draw_G2, Draw_G3 = False,False                
+                elif x > 276 and x < 312:
                     # print "second Int Motor"
-                    Draw_SIntM = True
-                    Draw_FIntM, Draw_FDecM = False,False
-                if x > 340 and x < 380:
+                    Draw_G2 = True
+                    Draw_G1, Draw_G3 = False,False
+                elif x > 340 and x < 380:
                     # print "first decimal Motor"
-                    Draw_FDecM = True
-                    Draw_FIntM, Draw_SIntM = False,False
+                    Draw_G3 = True
+                    Draw_G1, Draw_G2 = False,False
 
             elif (y > 40)and(y < 80):
-                #menu map, Second row Room Temp
-                Row2 = True
-                Row1, Row3 = False, False
-                if x > 230 and x < 270:
-                    # print "first Int Room"
-                    Draw_FIntR = True
-                    Draw_SIntR, Draw_FDecR = False,False
-                if x > 276 and x < 312:
-                    # print "second Int Room"
-                    Draw_SIntR = True
-                    Draw_FIntR, Draw_FDecR = False,False
+                if enable_orange:
+                    #menu map, Second row Room Temp
+                    Row2 = True
+                    Row1, Row3 = False, False
+                    if x > 230 and x < 270:
+                        # print "first Int Room"
+                        Draw_O1 = True
+                        Draw_O2, Draw_O3 = False,False
+                    elif x > 276 and x < 312:
+                        # print "second Int Room"
+                        Draw_O2 = True
+                        Draw_O1, Draw_O3 = False,False
 
-                if x > 340 and x < 380:
-                    # print "first decimal Room"
-                    Draw_FDecR = True
-                    Draw_FIntR, Draw_SIntR = False,False
+                    elif x > 340 and x < 380:
+                        # print "first decimal Room"
+                        Draw_O3 = True
+                        Draw_O1, Draw_O2 = False,False
 
             elif (y > 80)and(y < 120):
-                #menu map, Third row Humidity
-                Row3 = True
-                Row1, Row2 = False,False
-                if x > 230 and x < 270:
-                    # print "first Int Humidity"
-                    Draw_FIntH = True
-                    Draw_SIntH, Draw_FDecH = False,False
-                if x > 276 and x < 312:
-                    # print "second Int Humidity"
-                    Draw_SIntH = True
-                    Draw_FIntH, Draw_FDecH = False,False
+                if enable_blue:
+                    #menu map, Third row Humidity
+                    Row3 = True
+                    Row1, Row2 = False,False
+                    if x > 230 and x < 270:
+                        # print "first Int Humidity"
+                        Draw_B1 = True
+                        Draw_B2, Draw_B3 = False,False
+                    elif x > 276 and x < 312:
+                        # print "second Int Humidity"
+                        Draw_B2 = True
+                        Draw_B1, Draw_B3 = False,False
 
-                if x > 340 and x < 380:
-                    # print "first decimal Humidity"
-                    Draw_FDecH = True
-                    Draw_FIntH, Draw_SIntH = False,False
+                    elif x > 340 and x < 380:
+                        # print "first decimal Humidity"
+                        Draw_B3 = True
+                        Draw_B1, Draw_B2 = False,False
 
             #Get mouse location for Drawing Selecion Boxes
             else:
                 drawing = True
-                if Row1:    #Motor Temp
-                    if (Draw_FIntM):
-                        Motor_IntBox1.location = [x, y]
-                    if (Draw_SIntM):
-                        Motor_IntBox2.location = [x, y]
-                    if (Draw_FDecM):
-                        Motor_DecimalBox.location = [x, y]
+                if Row1:    #Geen Temperature
+                    if Draw_G1: G_Box1.location = [x, y] 
+                    elif Draw_G2: G_Box2.location = [x, y] 
+                    elif Draw_G3: G_Box3.location = [x, y] 
                 
-                if Row2:    #Room Temp
-                    if (Draw_FIntR):
-                        Room_IntBox1.location = [x, y]
-                    if (Draw_SIntR):
-                        Room_IntBox2.location = [x, y]
-                    if (Draw_FDecR):
-                        Room_DecimalBox.location = [x, y]
+                elif Row2:    #Room Temp
+                    if Draw_O1: O_Box1.location = [x, y]
+                    elif Draw_O2: O_Box2.location = [x, y]
+                    elif Draw_O3: O_Box3.location = [x, y]
                 
-                if Row3:    #Room umidity
-                    if (Draw_FIntH):
-                        Humidity_IntBox1.location = [x, y]
-                    if (Draw_SIntH):
-                        Humidity_IntBox2.location = [x, y]
-                    if (Draw_FDecH):
-                        Humidity_DecimalBox.location = [x, y]
+                elif Row3:    #Room umidity
+                    if Draw_B1: B_Box1.location = [x, y]
+                    elif Draw_B2: B_Box2.location = [x, y]
+                    elif Draw_B3: B_Box3.location = [x, y]
 
         #Move selection with mouse (while clicked)
         elif event == cv2.EVENT_MOUSEMOVE and drawing:
             if Row1:    #Motor Temp
-                if (Draw_FIntM):
-                    Motor_IntBox1.location = [x, y]
-                if (Draw_SIntM):
-                    Motor_IntBox2.location = [x, y]
-                if (Draw_FDecM):
-                    Motor_DecimalBox.location = [x, y]
+                if Draw_G1: G_Box1.location = [x, y]
+                elif Draw_G2: G_Box2.location = [x, y]
+                elif Draw_G3: G_Box3.location = [x, y]
             
-            if Row2:    #Room Temp
-                if (Draw_FIntR):
-                    Room_IntBox1.location = [x, y]
-                if (Draw_SIntR):
-                    Room_IntBox2.location = [x, y]
-                if (Draw_FDecR):
-                    Room_DecimalBox.location = [x, y]
+            elif Row2:    #Room Temp
+                if Draw_O1: O_Box1.location = [x, y]
+                elif Draw_O2: O_Box2.location = [x, y]
+                elif Draw_O3: O_Box3.location = [x, y]
             
-            if Row3:    #Room umidity
-                if (Draw_FIntH):
-                    Humidity_IntBox1.location = [x, y]
-                if (Draw_SIntH):
-                    Humidity_IntBox2.location = [x, y]
-                if (Draw_FDecH):
-                    Humidity_DecimalBox.location = [x, y]
+            elif Row3:    #Room umidity
+                if Draw_B1: B_Box1.location = [x, y]
+                elif Draw_B2: B_Box2.location = [x, y]
+                elif Draw_B3: B_Box3.location = [x, y]
 
         elif event == cv2.EVENT_LBUTTONUP:
             drawing = False 
@@ -399,37 +387,40 @@ if __name__ == '__main__':
     cv2.namedWindow('frame')
     cv2.createTrackbar('Erode', 'frame', int(erosion_iters),       4,   nothing)
 
+    #create Boxes
+    G_Box1 = segBox("g_box1" ,(0,255,0))
+    G_Box2 = segBox("g_box2" ,(0,255,0))
+    G_Box3 = segBox("g_box3" ,(0,255,0))
+
+    O_Box1 = segBox("o_box1" ,(0,185,255))
+    O_Box2 = segBox("o_box2" ,(0,185,255))
+    O_Box3 = segBox("o_box3" ,(0,185,255))
+
+    B_Box1 = segBox("b_box1" ,(255,185,0))
+    B_Box2 = segBox("b_box2" ,(255,185,0))
+    B_Box3 = segBox("b_box3" ,(255,185,0))
+
+
     # Create selection frames. Each set is for a 2 digit number with 1 decimal
-    Int_selection_1_motor = SelectionFrame('Motor_Int1')
-    Int_selection_2_motor = SelectionFrame('Motor_Int2')
-    Dec_selection_motor   = SelectionFrame('Motor_Decimal')
+    SelectionFrame(G_Box1.name)
+    SelectionFrame(G_Box2.name)
+    SelectionFrame(G_Box3.name)
 
-    if extra_RoomTemp: #only create frames if option enabled
-        Int_selection_1_room = SelectionFrame('Room_Int1')
-        Int_selection_2_room = SelectionFrame('Room_Int2')
-        Dec_selection_room   = SelectionFrame('Room_Decimal')
+    if enable_orange: #only create frames if option enabled
+        SelectionFrame(O_Box1.name)
+        SelectionFrame(O_Box2.name)
+        SelectionFrame(O_Box3.name)
 
-    if extra_RoomHum:
-        Int_selection_1_Humidity = SelectionFrame('Humidity_Int1')
-        Int_selection_2_Humidity = SelectionFrame('Humidity_Int2')
-        Dec_selection_Humidity   = SelectionFrame('Humidity_Decimal')
+    if enable_blue:
+        SelectionFrame(B_Box1.name)
+        SelectionFrame(B_Box2.name)
+        SelectionFrame(B_Box3.name)
 
     # Load Menu Image and Set up mouse callback
     menu = cv2.imread("menu.png")
     cv2.setMouseCallback('frame', mouseEvent)
 
-    #create Boxes
-    Motor_IntBox1       = segBox((0,255,0))
-    Motor_IntBox2       = segBox((0,245,0))
-    Motor_DecimalBox    = segBox((0,235,0))
-
-    Room_IntBox1        = segBox((0,185,255))
-    Room_IntBox2        = segBox((0,175,245))
-    Room_DecimalBox     = segBox((0,165,235))
-
-    Humidity_IntBox1    = segBox((255,185,0))
-    Humidity_IntBox2    = segBox((245,175,0))
-    Humidity_DecimalBox = segBox((235,165,0))
+    
  
 #Main Loop
     while True:
@@ -445,81 +436,73 @@ if __name__ == '__main__':
         frame[0:menu.shape[0], 0:menu.shape[1]] = menu
         ########################################################################
         # ROI Regions of Interest
-        Int1MotorList, Int1RoomList, Int1HumidityList = [],[],[]
-        Int2MotorList, Int2RoomList, Int2HumidityList = [],[],[]
-        DecMotorList,  DecRoomList,  DecHumidityList  = [],[],[]
+        G1List, O1List, B1List = [],[],[]
+        G2List, O2List, B2List = [],[],[]
+        G3List, O2List, B3List = [],[],[]
         sendData = True     #Make false to stop UDP data sending
 
         #Create a list of 10 values and find the mode. 
         #If no value is found, dont add to the list
         for i in range(0, 10, +1):
-          #Temperature Motor
-            tempx = imageIdentify(Motor_IntBox1,    'Motor_Int1')
-            tempy = imageIdentify(Motor_IntBox2,    'Motor_Int2')
-            tempz = imageIdentify(Motor_DecimalBox, 'Motor_Decimal')
-            if tempx != None:
-                Int1MotorList.append(tempx)          
-            if tempy != None:
-                Int2MotorList.append(tempy)
-            if tempz != None:
-                DecMotorList.append(tempz)
+            #tempery values used incase imageIdentify was called twice
+            #Temperature Motor
+            tempx = imageIdentify(G_Box1)
+            tempy = imageIdentify(G_Box2)
+            tempz = imageIdentify(G_Box3)
+            if tempx != None: G1List.append(tempx)          
+            if tempy != None: G2List.append(tempy)
+            if tempz != None: G3List.append(tempz)
 
-            if extra_RoomTemp:
-              #Temperature Room
-                tempx = imageIdentify(Room_IntBox1,    'Room_Int1')
-                tempy = imageIdentify(Room_IntBox2,    'Room_Int2')
-                tempz = imageIdentify(Room_DecimalBox, 'Room_Decimal')
-                if tempx != None:
-                    Int1RoomList.append(tempx)          
-                if tempy != None:
-                    Int2RoomList.append(tempy)
-                if tempz != None:
-                    DecRoomList.append(tempz)
+            if enable_orange:
+                #Temperature Room
+                tempx = imageIdentify(O_Box1)
+                tempy = imageIdentify(O_Box2)
+                tempz = imageIdentify(O_Box3)
+                if tempx != None: O1List.append(tempx)          
+                if tempy != None: O2List.append(tempy)
+                if tempz != None: O2List.append(tempz)
 
-            if extra_RoomHum:
-              #Humidity
-                tempx = imageIdentify(Humidity_IntBox1,    'Humidity_Int1')
-                tempy = imageIdentify(Humidity_IntBox2,    'Humidity_Int2')
-                tempz = imageIdentify(Humidity_DecimalBox, 'Humidity_Decimal')
-                if tempx != None:
-                    Int1HumidityList.append(tempx)          
-                if tempy != None:
-                    Int2HumidityList.append(tempy)
-                if tempz != None:
-                    DecHumidityList.append(tempz)
+            if enable_blue:
+                #Humidity
+                tempx = imageIdentify(B_Box1)
+                tempy = imageIdentify(B_Box2)
+                tempz = imageIdentify(B_Box3)
+                if tempx != None: B1List.append(tempx)          
+                if tempy != None: B2List.append(tempy)
+                if tempz != None: B3List.append(tempz)
 
         #finds the mode of the Lists, if list is empty throws an ERROR and 
         #sendData is set to false. The program then trys bypassing the 1 second wait. 
         try: #convert Motor Temperature
-            Int1Motor = Counter(Int1MotorList).most_common(1)[0][0]
-            Int2Motor = Counter(Int2MotorList).most_common(1)[0][0]
-            DecMotor  = Counter(DecMotorList ).most_common(1)[0][0]
+            G1 = Counter(G1List).most_common(1)[0][0]
+            G2 = Counter(G2List).most_common(1)[0][0]
+            G3 = Counter(G3List ).most_common(1)[0][0]
         except:
-            Int1Motor, Int2Motor, DecMotor = None,None,None
+            G1, G2, G3 = None,None,None
             log_String = "No Motor Temp Found ---" + datetime.datetime.now().strftime('%H:%M:%S.%f')
             logging.warning(log_String)
             # print log_String
             # sendData = False
 
-        if extra_RoomTemp: # Find Mode if Enabled 
+        if enable_orange: # Find Mode if Enabled 
             try: #convert Room Temperature
-                Int1Room = Counter(Int1RoomList).most_common(1)[0][0]
-                Int2Room = Counter(Int2RoomList).most_common(1)[0][0]
-                DecRoom  = Counter(DecRoomList ).most_common(1)[0][0]
+                O1 = Counter(O1List).most_common(1)[0][0]
+                O2 = Counter(O2List).most_common(1)[0][0]
+                O3 = Counter(O2List ).most_common(1)[0][0]
             except:
                 #Set Values to None
-                Int1Room, Int2Room, DecRoom = None,None,None
+                O1, O2, O3 = None,None,None
                 log_String = "No Room Temp Found --- " + datetime.datetime.now().strftime('%H:%M:%S.%f')
                 logging.warning(log_String)
                 # print log_String
-        if extra_RoomHum: # Find Mode if Enabled 
+        if enable_blue: # Find Mode if Enabled 
             try: #convert Room Humidity
-                Int1Humidity = Counter(Int1HumidityList).most_common(1)[0][0]
-                Int2Humidity = Counter(Int2HumidityList).most_common(1)[0][0]
-                DecHumidity  = Counter(DecHumidityList ).most_common(1)[0][0]
+                B1 = Counter(B1List).most_common(1)[0][0]
+                B2 = Counter(B2List).most_common(1)[0][0]
+                B3 = Counter(B3List ).most_common(1)[0][0]
             except:
                 #Set Values to None
-                Int1Humidity, Int2Humidity, DecHumidity = None,None,None
+                B1, B2, B3 = None,None,None
                 log_String = "No Humidityt Found --- " + datetime.datetime.now().strftime('%H:%M:%S.%f')
                 logging.warning(log_String)
                 # print log_String
@@ -531,49 +514,49 @@ if __name__ == '__main__':
         
         #Combine integer components and Decimal
         try:
-            temperatureMotor = float(10*Int1Motor + Int2Motor) + 0.1*float(DecMotor)
+            greenValue = float(10*G1 + G2) + 0.1*float(G3)
         except:
-            temperatureMotor = None
+            greenValue = None
 
-        if extra_RoomTemp:
+        if enable_orange:
             try:
-                temperatureRoom  = float(10*Int1Room  + Int2Room)  + 0.1*float(DecRoom)
+                orangeValue = float(10*O1  + O2)  + 0.1*float(O3)
             except:
-                temperatureRoom = None
+                orangeValue = None
 
-        if extra_RoomHum:
+        if enable_blue:
             try:
-                humidityRoom     = float(10*Int1Humidity + Int2Humidity) + 0.1*float(DecHumidity)
+                blueValue = float(10*B1 + B2) + 0.1*float(B3)
             except:
-                humidityRoom = None
+                blueValue = None
             
         #Create Send data array and log String
-        SendArray = [temperatureMotor, temperatureRoom, humidityRoom]
-        log_String = "Motor Temp: %r :  Room Temp: %r :  Humidity: %r --- "%(temperatureMotor, temperatureRoom, humidityRoom) + datetime.datetime.now().strftime('%H:%M:%S.%f')
+        SendArray = [greenValue, orangeValue, blueValue]
+        log_String = "Motor Temp: %r :  Room Temp: %r :  Humidity: %r --- "%(greenValue, orangeValue, blueValue) + datetime.datetime.now().strftime('%H:%M:%S.%f')
         
         #Print and log outputed Data
         print log_String
         logging.info(log_String)
 
         #Check if there are Values to Send, and if there are any values, send them.
-        if (temperatureMotor != None) or (temperatureRoom != None) or (humidityRoom != None):
+        if (greenValue != None) or (orangeValue != None) or (blueValue != None):
             #Send Data over network
             sock.sendto('{"temperatures": %r}'%SendArray, (UDP_IP, UDP_PORT))
 
             c = cv.WaitKey(1000)
-            if c == "q":
-                break
-            if stopOpenCv:
-                break
+            if c == "q":   break
+            if stopOpenCv: break
 
         else: # if none values to send do nothing and restart loop.
             c = cv.WaitKey(1)
-            if c == "q":
-                break
-            if stopOpenCv:
-                break
+            if c == "q":   break
+            if stopOpenCv: break
 
-    # When everything done, release the capture
+    # When everything done, release the capture, close windows, save config values
     cap.release()
     cv2.destroyAllWindows()
+
+    with open("./config.ini",'w') as Configfile:
+        Config.write(Configfile)
+
     logging.info('~~~~~~ End Log ~~~~~~' + datetime.datetime.now().strftime('%y/%m/%d  %H:%M:%S.%f'))
