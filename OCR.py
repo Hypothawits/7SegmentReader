@@ -61,7 +61,7 @@ def imageIdentify(Box):
 
         #convert image to number
         ValueList = getValueList(Box.segCoordinates, Box.selection)
-        Value     = convertToNumber(ValueList)
+        Value     = convertToInt(ValueList)
 
         return Value
     except:
@@ -101,32 +101,30 @@ def SegValue(Seg, selection):
         #for debuging, should never happen
         return 5
 
-def convertToNumber(X):
+def convertToInt(X):
     #Uncomment for values less than 10
     # if X == [0,0,0,0,0,0,0]:
     #     return 0
-    if X == [1,1,1,1,1,1,0]:
-        return 0
-    if X == [0,1,1,0,0,0,0]:
-        return 1
-    if X == [1,1,0,1,1,0,1]:
-        return 2
-    if X == [1,1,1,1,0,0,1]:
-        return 3
-    if X == [0,1,1,0,0,1,1]:
-        return 4
-    if X == [1,0,1,1,0,1,1]:
-        return 5
-    if X == [1,0,1,1,1,1,1]:
-        return 6
-    if X == [1,1,1,0,0,0,0]:
-        return 7
-    if X == [1,1,1,1,1,1,1]:
-        return 8    
-    if X == [1,1,1,1,0,1,1]:
-        return 9
-    else:
+    if X == [1,1,1,1,1,1,0]: return 0
+    if X == [0,1,1,0,0,0,0]: return 1
+    if X == [1,1,0,1,1,0,1]: return 2
+    if X == [1,1,1,1,0,0,1]: return 3
+    if X == [0,1,1,0,0,1,1]: return 4
+    if X == [1,0,1,1,0,1,1]: return 5
+    if X == [1,0,1,1,1,1,1]: return 6
+    if X == [1,1,1,0,0,0,0]: return 7
+    if X == [1,1,1,1,1,1,1]: return 8    
+    if X == [1,1,1,1,0,1,1]: return 9
+    else: return None
+
+def convertToFloat(a,b,c):
+    try:
+        return float(10*a + b) + 0.1*float(c)
+    except:
         return None
+
+def getDate(formate_string):
+    return datetime.datetime.now().strftime(formate_string)
 
 def draw():
     #Draw Rectangle and Location Points
@@ -166,7 +164,7 @@ class segBox:
     #Point location coordinates
     segCoordinates = []
 
-    #Set starting location and size
+    #Set default location and size
     size      = 10
     threshold = 80
     location  = [200, 200]
@@ -198,11 +196,11 @@ class segBox:
 
         #draw indicator for each segment location 
         for point in self.segCoordinates:
-            cv2.circle(frame, (origin[0] + point[0], origin[1] + point[1]), 1 , (0, 0, 255), -1)
+            cv2.circle(frame, (origin[0] + point[0], origin[1] + point[1]), 1, (0, 0, 255), -1)
 
         #Set Nox variables to Config.ini
-        Config.set('SIZES',     self.name, self.size)
-        Config.set('THRESHOLD', self.name, self.threshold)
+        Config.set('SIZES',     self.name,       self.size)
+        Config.set('THRESHOLD', self.name,       self.threshold)
         Config.set('LOCATIONS', self.name + 'x', self.location[0])
         Config.set('LOCATIONS', self.name + 'y', self.location[1])
 
@@ -233,8 +231,8 @@ if __name__ == '__main__':
     Config.read("./config.ini")
     erosion_iters = ConfigSectionMap("PREPROCESS")['erode']
     
-    enable_orange = True if ConfigSectionMap("OCR")['roomtemp'] == "True" else False #convert string to boolean
-    enable_blue   = True if ConfigSectionMap("OCR")['roomhum']  == "True" else False #convert string to boolean
+    enable_orange = True if ConfigSectionMap("OCR")['orange'] == "True" else False #convert string to boolean
+    enable_blue   = True if ConfigSectionMap("OCR")['blue']   == "True" else False #convert string to boolean
 
     ############################################################################
     # Variable Set Up
@@ -253,18 +251,18 @@ if __name__ == '__main__':
     ############################################################################
     # UDP Set Up
     # UDP_IP = "10.1.18.236","127.0.0.1"
-    UDP_IP = ConfigSectionMap("OCR")['ip'] 
+    UDP_IP   = ConfigSectionMap("OCR")['ip'] 
     UDP_PORT = 8100
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
+    sock     = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
     ############################################################################
     # Logging Set Up
     logging.basicConfig(filename = 'Consol.log', format = '%(levelname)s %(message)s', level = logging.DEBUG)
-    logging.info('~~~~~~ Start Log ~~~~~~   ' + datetime.datetime.now().strftime('%y/%m/%d  %H:%M:%S.%f'))
+    logging.info('~~~~~~ Start Log ~~~~~~   ' + getDate('%y/%m/%d  %H:%M:%S.%f'))
     #############################################################################
     # Video capture and Settings (Note: May not be avilible on all Cameras)
     cap = cv2.VideoCapture(0)
-    cap.set(cv.CV_CAP_PROP_CONTRAST, 150.0)
-    cap.set(cv.CV_CAP_PROP_EXPOSURE, 6.0)
+    cap.set(cv.CV_CAP_PROP_CONTRAST,   150)
+    cap.set(cv.CV_CAP_PROP_EXPOSURE,   6.0)
     cap.set(cv.CV_CAP_PROP_BRIGHTNESS, 200)
     #############################################################################
 
@@ -273,7 +271,7 @@ if __name__ == '__main__':
 
     # mouse callback function
     def mouseEvent(event, x, y, flags, param):
-        global Row1, Row2, Row3, drawing      
+        global Row1,    Row2,    Row3,   drawing      
         global Draw_G1, Draw_G2, Draw_G3
         global Draw_O1, Draw_O2, Draw_O3
         global Draw_B1, Draw_B2, Draw_B3
@@ -346,34 +344,34 @@ if __name__ == '__main__':
             else:
                 drawing = True
                 if Row1:    #Geen Temperature
-                    if Draw_G1: G_Box1.location = [x, y] 
+                    if   Draw_G1: G_Box1.location = [x, y] 
                     elif Draw_G2: G_Box2.location = [x, y] 
                     elif Draw_G3: G_Box3.location = [x, y] 
                 
                 elif Row2:    #Room Temp
-                    if Draw_O1: O_Box1.location = [x, y]
+                    if   Draw_O1: O_Box1.location = [x, y]
                     elif Draw_O2: O_Box2.location = [x, y]
                     elif Draw_O3: O_Box3.location = [x, y]
                 
                 elif Row3:    #Room umidity
-                    if Draw_B1: B_Box1.location = [x, y]
+                    if   Draw_B1: Box1.location   = [x, y]
                     elif Draw_B2: B_Box2.location = [x, y]
                     elif Draw_B3: B_Box3.location = [x, y]
 
         #Move selection with mouse (while clicked)
         elif event == cv2.EVENT_MOUSEMOVE and drawing:
             if Row1:    #Motor Temp
-                if Draw_G1: G_Box1.location = [x, y]
+                if   Draw_G1: G_Box1.location = [x, y]
                 elif Draw_G2: G_Box2.location = [x, y]
                 elif Draw_G3: G_Box3.location = [x, y]
             
             elif Row2:    #Room Temp
-                if Draw_O1: O_Box1.location = [x, y]
+                if   Draw_O1: O_Box1.location = [x, y]
                 elif Draw_O2: O_Box2.location = [x, y]
                 elif Draw_O3: O_Box3.location = [x, y]
             
             elif Row3:    #Room umidity
-                if Draw_B1: B_Box1.location = [x, y]
+                if   Draw_B1: B_Box1.location = [x, y]
                 elif Draw_B2: B_Box2.location = [x, y]
                 elif Draw_B3: B_Box3.location = [x, y]
 
@@ -473,10 +471,10 @@ if __name__ == '__main__':
         try: #convert Motor Temperature
             G1 = Counter(G1List).most_common(1)[0][0]
             G2 = Counter(G2List).most_common(1)[0][0]
-            G3 = Counter(G3List ).most_common(1)[0][0]
+            G3 = Counter(G3List).most_common(1)[0][0]
         except:
             G1, G2, G3 = None,None,None
-            log_String = "No Motor Temp Found ---" + datetime.datetime.now().strftime('%H:%M:%S.%f')
+            log_String = "No Geen Temp Found ---" + getDate('%H:%M:%S.%f')
             logging.warning(log_String)
             # print log_String
             # sendData = False
@@ -485,22 +483,22 @@ if __name__ == '__main__':
             try: #convert Room Temperature
                 O1 = Counter(O1List).most_common(1)[0][0]
                 O2 = Counter(O2List).most_common(1)[0][0]
-                O3 = Counter(O2List ).most_common(1)[0][0]
+                O3 = Counter(O2List).most_common(1)[0][0]
             except:
                 #Set Values to None
                 O1, O2, O3 = None,None,None
-                log_String = "No Room Temp Found --- " + datetime.datetime.now().strftime('%H:%M:%S.%f')
+                log_String = "No Orange Temp Found --- " + getDate('%H:%M:%S.%f')
                 logging.warning(log_String)
                 # print log_String
         if enable_blue: # Find Mode if Enabled 
             try: #convert Room Humidity
                 B1 = Counter(B1List).most_common(1)[0][0]
                 B2 = Counter(B2List).most_common(1)[0][0]
-                B3 = Counter(B3List ).most_common(1)[0][0]
+                B3 = Counter(B3List).most_common(1)[0][0]
             except:
                 #Set Values to None
                 B1, B2, B3 = None,None,None
-                log_String = "No Humidityt Found --- " + datetime.datetime.now().strftime('%H:%M:%S.%f')
+                log_String = "No Blue Temp Found --- " + Getdate('%H:%M:%S.%f')
                 logging.warning(log_String)
                 # print log_String
 
@@ -509,27 +507,15 @@ if __name__ == '__main__':
         ##############################################################################################
         # Send data over UDP
         
+
         #Combine integer components and Decimal
-        try:
-            greenValue = float(10*G1 + G2) + 0.1*float(G3)
-        except:
-            greenValue = None
-
-        if enable_orange:
-            try:
-                orangeValue = float(10*O1  + O2)  + 0.1*float(O3)
-            except:
-                orangeValue = None
-
-        if enable_blue:
-            try:
-                blueValue = float(10*B1 + B2) + 0.1*float(B3)
-            except:
-                blueValue = None
-            
+        greenValue = convertToFloat(G1,G2,G3)
+        if enable_orange: orangeValue = convertToFloat(O1,O2,O3)
+        if enable_blue:   blueValue   = convertToFloat(B1,B2,B3)
+           
         #Create Send data array and log String
         SendArray = [greenValue, orangeValue, blueValue]
-        log_String = "Motor Temp: %r :  Room Temp: %r :  Humidity: %r --- "%(greenValue, orangeValue, blueValue) + datetime.datetime.now().strftime('%H:%M:%S.%f')
+        log_String = "Motor Temp: %r :  Room Temp: %r :  Humidity: %r --- "%(greenValue, orangeValue, blueValue) + getDate('%H:%M:%S.%f')
         
         #Print and log outputed Data
         print log_String
@@ -557,4 +543,4 @@ if __name__ == '__main__':
     with open("./config.ini",'w') as Configfile:
         Config.write(Configfile)
 
-    logging.info('~~~~~~ End Log ~~~~~~' + datetime.datetime.now().strftime('%y/%m/%d  %H:%M:%S.%f'))
+    logging.info('~~~~~~ End Log ~~~~~~' + getDate('%y/%m/%d  %H:%M:%S.%f'))
