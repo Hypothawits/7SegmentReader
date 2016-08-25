@@ -30,9 +30,14 @@ def OnClose(event):
     global stopOpenCv
     stopOpenCv = True
 
-def SaveData():
-    #Does not do anything yet
-    print "Doesn't Save Yet" 
+def Instructions():
+    print "Using the config.ini enable the number of numbers you want to read."
+    print "Within the config.ini set the ip address you wish to send data to."
+    print "Select which digit you would like to set up from the menu."
+    print "Move the box and adjust the size so that each of the red dots"
+    print "fall within each of the 7 segments."
+    print "Adjust the threshold slider for each selection so that the number is clearly"
+    print "visible with as little noise as possible."
 
 def imageIdentify(Box):
     global config
@@ -145,7 +150,7 @@ def draw():
 class segBox:
     #creates the frame and 7 seg point overlay for each selection 
 
-    #Segment relative locations
+    #Segment relative locations, adjust if displays are tilted differently.
     ax,ay = 0.50, 0.15
     bx,by = 0.65, 0.25
     cx,cy = 0.63, 0.65
@@ -223,13 +228,13 @@ print "Start Programe"
 
 if __name__ == '__main__':
     ############################################################################
-    # Config
+    # Config Set Up and Values loaded 
     Config = ConfigParser.ConfigParser()
     Config.read("./config.ini")
-    erosion_iters  = ConfigSectionMap("PREPROCESS")['erode']
+    erosion_iters = ConfigSectionMap("PREPROCESS")['erode']
     
-    enable_orange = True if ConfigSectionMap("OCR")['roomtemp'] == "True" else False
-    enable_blue  = True if ConfigSectionMap("OCR")['roomhum']  == "True" else False
+    enable_orange = True if ConfigSectionMap("OCR")['roomtemp'] == "True" else False #convert string to boolean
+    enable_blue   = True if ConfigSectionMap("OCR")['roomhum']  == "True" else False #convert string to boolean
 
     ############################################################################
     # Variable Set Up
@@ -247,8 +252,8 @@ if __name__ == '__main__':
     blueValue   = None
     ############################################################################
     # UDP Set Up
-    # UDP_IP = "10.1.18.236"
-    UDP_IP = "127.0.0.1"    #Send to self
+    # UDP_IP = "10.1.18.236","127.0.0.1"
+    UDP_IP = ConfigSectionMap("OCR")['ip'] 
     UDP_PORT = 8100
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
     ############################################################################
@@ -283,14 +288,8 @@ if __name__ == '__main__':
                 if x > 3 and x < 40:
                     OnClose(event)
                 elif x > 45 and x < 105:
-                    print "Select which digit you would like to set up from the menu."
-                    print "Move the box and adjust the size so that is covers the digit,"
-                    print "each on the red dots should fall within each of the 7 segments."
-                    print "Adjust the threshold slider for each selection so that the number is clearly"
-                    print "visible with as little noise as possible."
-                elif x > 110 and x < 205:
-                    SaveData()
-
+                    Instructions()
+                                    
                 # Selection Control buttons
                 elif x > 230 and x < 270:
                     # print "first Int Motor"
@@ -385,7 +384,7 @@ if __name__ == '__main__':
     # GUI and Window Set Up
     # show main window and add it's trackbar
     cv2.namedWindow('frame')
-    cv2.createTrackbar('Erode', 'frame', int(erosion_iters),       4,   nothing)
+    cv2.createTrackbar('Erode', 'frame', int(erosion_iters), 4, nothing)
 
     #create Boxes
     G_Box1 = segBox("g_box1" ,(0,255,0))
@@ -420,8 +419,6 @@ if __name__ == '__main__':
     menu = cv2.imread("menu.png")
     cv2.setMouseCallback('frame', mouseEvent)
 
-    
- 
 #Main Loop
     while True:
         # Capture frame-by-frame, Frame is the whole image captured
@@ -556,6 +553,7 @@ if __name__ == '__main__':
     cap.release()
     cv2.destroyAllWindows()
 
+    #Save the Changes to the Config File
     with open("./config.ini",'w') as Configfile:
         Config.write(Configfile)
 
