@@ -32,7 +32,7 @@ def OnClose(event):
 
 def Instructions():
     print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-    print "Using the config.ini enable the number of numbers you want to read."
+    print "Using the config.ini enable the number of 3 digit numbers you want to read."
     print "Within the config.ini set the ip address you wish to send data to."
     print "Select which digit you would like to set up from the menu."
     print "Move the box and adjust the size so that each of the red dots"
