@@ -45,12 +45,11 @@ def imageIdentify(Box):
         #Gets and processes the given box selection 
         #Get box size from  it's slider
         Selection_Frame = Box.name    #Selection Frame and Box share Name
-        Box.size  = cv2.getTrackbarPos('Size',   Selection_Frame) 
-        Box.threshold = cv2.getTrackbarPos('Threshold', Selection_Frame)  
+        Box.size        = cv2.getTrackbarPos('Size',   Selection_Frame) 
+        Box.threshold   = cv2.getTrackbarPos('Threshold', Selection_Frame)  
 
         #Set the min box size
-        if Box.size <10:
-            Box.size = 10
+        if Box.size <10: Box.size = 10
 
         #gets and process the selection
         Box.selection = getSelection(Box.location[0], Box.location[1], Box.size)
@@ -68,6 +67,11 @@ def imageIdentify(Box):
         print "Selection Error: Out of Bounds"
         return None
 
+def getSelection(startX, startY, size):
+    #gets the selection from the main image
+    selection = frame[startY - size:(startY + size), startX - size:(startX + size)]
+    return selection
+
 def preprocessImage(imageSelection, frame, thresh):
     #preprocesses the selection by removing values below threshold 
     imageSelection  = cv2.cvtColor(imageSelection, cv2.COLOR_BGR2GRAY)  #Make GreyScale
@@ -76,11 +80,6 @@ def preprocessImage(imageSelection, frame, thresh):
     erosion_iters   = cv2.getTrackbarPos('Erode', 'frame')
     imageSelection  = cv2.erode(imageSelection, kernel, iterations = erosion_iters)
     return imageSelection
-
-def getSelection(startX, startY, size):
-    #gets the selection from the main image
-    selection = frame[startY - size:(startY + size), startX - size:(startX + size)]
-    return selection
 
 def getValueList(SevenSeg, selection):
     #get the value (1/0) for each of the 7 segments
@@ -123,10 +122,6 @@ def convertToFloat(a,b,c):
     except:
         return None
 
-def getDate(formate_string):
-    
-    return datetime.datetime.now().strftime(formate_string)
-
 def draw():
     #Draw Rectangle and Location Points
     #must be done after the selections are made, 
@@ -145,6 +140,10 @@ def draw():
         B_Box3.drawBoxRectangle()
 
     cv2.imshow('frame', frame)
+
+def getDate(formate_string):
+    
+    return datetime.datetime.now().strftime(formate_string)
 
 def nothing(x):
         #on trackbar change, do nothing
@@ -312,7 +311,7 @@ class segBox:
         for point in self.segCoordinates:
             cv2.circle(frame, (origin[0] + point[0], origin[1] + point[1]), 1, (0, 0, 255), -1)
 
-        #Set Nox variables to Config.ini
+        #Set values variables to Config.ini
         Config.set('SIZES',     self.name,       self.size)
         Config.set('THRESHOLD', self.name,       self.threshold)
         Config.set('LOCATIONS', self.name + 'x', self.location[0])
@@ -322,12 +321,12 @@ class segBox:
         cv2.imshow('frame', frame)
 
 class SelectionFrame:
-    #Creates a window with threshold and selection size sliders
+    #Creates a named window with threshold and selection size sliders
     def __init__(self, name):
         self.name = name
         cv2.namedWindow(name)
-        
-        self.display   = np.zeros((200, 200, 3), np.uint8)
+
+        self.display  = np.zeros((200, 200, 3), np.uint8)
         self.thresh   = ConfigSectionMap("THRESHOLD")[self.name]
         self.box_size = ConfigSectionMap("SIZES")[self.name]
 
@@ -336,7 +335,7 @@ class SelectionFrame:
         cv2.imshow('frame', self.display)
 
 print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-print "Start Programe"
+print "                   Start Programe                   "
 
 if __name__ == '__main__':
     ############################################################################
@@ -359,9 +358,7 @@ if __name__ == '__main__':
     stopOpenCv  = False         # flag to stop opencv
 
     #initialize to None
-    greenValue  = None
-    orangeValue = None
-    blueValue   = None
+    greenValue, orangeValue, blueValue = None,None,None
     ############################################################################
     # UDP Set Up
     # UDP_IP = "10.1.18.236","127.0.0.1"
@@ -490,7 +487,7 @@ if __name__ == '__main__':
                 log_String = "No Orange Temp Found --- " + getDate('%H:%M:%S.%f')
                 logging.warning(log_String)
                 # print log_String
-        if enable_blue: # Find Mode if Enabled 
+        if enable_blue:   # Find Mode if Enabled 
             try: #convert Room Humidity
                 B1 = Counter(B1List).most_common(1)[0][0]
                 B2 = Counter(B2List).most_common(1)[0][0]
@@ -506,10 +503,8 @@ if __name__ == '__main__':
 
         ##############################################################################################
         # Send data over UDP
-        
-
         #Combine integer components and Decimal
-        greenValue = convertToFloat(G1,G2,G3)
+        greenValue = convertToFloat(G1,G2,G3) #Try convert to Float, else set to None
         if enable_orange: orangeValue = convertToFloat(O1,O2,O3)
         if enable_blue:   blueValue   = convertToFloat(B1,B2,B3)
            
