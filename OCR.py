@@ -239,7 +239,7 @@ def mouseEvent(event, x, y, flags, param):
                 elif Draw_O3: O_Box3.location = [x, y]
                 
             elif Row3:    #Room umidity
-                if   Draw_B1: Box1.location   = [x, y]
+                if   Draw_B1: B_Box1.location = [x, y]
                 elif Draw_B2: B_Box2.location = [x, y]
                 elif Draw_B3: B_Box3.location = [x, y]
 
