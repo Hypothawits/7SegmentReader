@@ -124,6 +124,7 @@ def convertToFloat(a,b,c):
         return None
 
 def getDate(formate_string):
+    
     return datetime.datetime.now().strftime(formate_string)
 
 def draw():
@@ -144,6 +145,119 @@ def draw():
         B_Box3.drawBoxRectangle()
 
     cv2.imshow('frame', frame)
+
+def nothing(x):
+        #on trackbar change, do nothing
+        pass
+
+def mouseEvent(event, x, y, flags, param):
+    # mouse callback function
+    global Row1,    Row2,    Row3,   drawing      
+    global Draw_G1, Draw_G2, Draw_G3
+    global Draw_O1, Draw_O2, Draw_O3
+    global Draw_B1, Draw_B2, Draw_B3
+
+    if event == cv2.EVENT_LBUTTONDOWN:
+        # menu position
+        if y < 40:
+            # menu map, First row Motor Temp
+            Row1 = True
+            Row2,Row3 = False,False
+
+            if x > 3 and x < 40:
+                OnClose(event)
+            elif x > 45 and x < 105:
+                Instructions()
+                                    
+            # Selection Control buttons
+            elif x > 230 and x < 270:
+                # print "first Int Motor"
+                Draw_G1 = True
+                Draw_G2, Draw_G3 = False,False                
+            elif x > 276 and x < 312:
+                # print "second Int Motor"
+                Draw_G2 = True
+                Draw_G1, Draw_G3 = False,False
+            elif x > 340 and x < 380:
+                # print "first decimal Motor"
+                Draw_G3 = True
+                Draw_G1, Draw_G2 = False,False
+
+        elif (y > 40)and(y < 80):
+            if enable_orange:
+                #menu map, Second row Room Temp
+                Row2 = True
+                Row1, Row3 = False, False
+                if x > 230 and x < 270:
+                    # print "first Int Room"
+                    Draw_O1 = True
+                    Draw_O2, Draw_O3 = False,False
+                elif x > 276 and x < 312:
+                    # print "second Int Room"
+                    Draw_O2 = True
+                    Draw_O1, Draw_O3 = False,False
+
+                elif x > 340 and x < 380:
+                    # print "first decimal Room"
+                    Draw_O3 = True
+                    Draw_O1, Draw_O2 = False,False
+
+        elif (y > 80)and(y < 120):
+            if enable_blue:
+                #menu map, Third row Humidity
+                Row3 = True
+                Row1, Row2 = False,False
+                if x > 230 and x < 270:
+                    # print "first Int Humidity"
+                    Draw_B1 = True
+                    Draw_B2, Draw_B3 = False,False
+                elif x > 276 and x < 312:
+                    # print "second Int Humidity"
+                    Draw_B2 = True
+                    Draw_B1, Draw_B3 = False,False
+
+                elif x > 340 and x < 380:
+                    # print "first decimal Humidity"
+                    Draw_B3 = True
+                    Draw_B1, Draw_B2 = False,False
+
+        #Get mouse location for Drawing Selecion Boxes
+        else:
+            drawing = True
+            if Row1:    #Geen Temperature
+                if   Draw_G1: G_Box1.location = [x, y] 
+                elif Draw_G2: G_Box2.location = [x, y] 
+                elif Draw_G3: G_Box3.location = [x, y] 
+                
+            elif Row2:    #Room Temp
+                if   Draw_O1: O_Box1.location = [x, y]
+                elif Draw_O2: O_Box2.location = [x, y]
+                elif Draw_O3: O_Box3.location = [x, y]
+                
+            elif Row3:    #Room umidity
+                if   Draw_B1: Box1.location   = [x, y]
+                elif Draw_B2: B_Box2.location = [x, y]
+                elif Draw_B3: B_Box3.location = [x, y]
+
+    #Move selection with mouse (while clicked)
+    elif event == cv2.EVENT_MOUSEMOVE and drawing:
+        if Row1:    #Motor Temp
+            if   Draw_G1: G_Box1.location = [x, y]
+            elif Draw_G2: G_Box2.location = [x, y]
+            elif Draw_G3: G_Box3.location = [x, y]
+            
+        elif Row2:    #Room Temp
+            if   Draw_O1: O_Box1.location = [x, y]
+            elif Draw_O2: O_Box2.location = [x, y]
+            elif Draw_O3: O_Box3.location = [x, y]
+            
+        elif Row3:    #Room umidity
+            if   Draw_B1: B_Box1.location = [x, y]
+            elif Draw_B2: B_Box2.location = [x, y]
+            elif Draw_B3: B_Box3.location = [x, y]
+
+    elif event == cv2.EVENT_LBUTTONUP:
+        drawing = False 
 
 class segBox:
     #creates the frame and 7 seg point overlay for each selection 
@@ -212,12 +326,12 @@ class SelectionFrame:
     def __init__(self, name):
         self.name = name
         cv2.namedWindow(name)
-        self.display   = np.zeros((200, 200, 3), np.uint8)
         
+        self.display   = np.zeros((200, 200, 3), np.uint8)
         self.thresh   = ConfigSectionMap("THRESHOLD")[self.name]
         self.box_size = ConfigSectionMap("SIZES")[self.name]
 
-        cv2.createTrackbar('Threshold', name,    int(self.thresh),   255, nothing)
+        cv2.createTrackbar('Threshold', name,    int(self.thresh),   255,  nothing)
         cv2.createTrackbar('Size',      name,    int(self.box_size), 150,  nothing)
         cv2.imshow('frame', self.display)
 
@@ -229,7 +343,7 @@ if __name__ == '__main__':
     # Config Set Up and Values loaded 
     Config = ConfigParser.ConfigParser()
     Config.read("./config.ini")
-    erosion_iters = ConfigSectionMap("PREPROCESS")['erode']
+    erosion_iters = ConfigSectionMap("PREPROCESS")['erode'] #Default is 2, seems to work best
     
     enable_orange = True if ConfigSectionMap("OCR")['orange'] == "True" else False #convert string to boolean
     enable_blue   = True if ConfigSectionMap("OCR")['blue']   == "True" else False #convert string to boolean
@@ -264,120 +378,6 @@ if __name__ == '__main__':
     cap.set(cv.CV_CAP_PROP_CONTRAST,   150)
     cap.set(cv.CV_CAP_PROP_EXPOSURE,   6.0)
     cap.set(cv.CV_CAP_PROP_BRIGHTNESS, 200)
-    #############################################################################
-
-    def nothing(x):
-        pass
-
-    # mouse callback function
-    def mouseEvent(event, x, y, flags, param):
-        global Row1,    Row2,    Row3,   drawing      
-        global Draw_G1, Draw_G2, Draw_G3
-        global Draw_O1, Draw_O2, Draw_O3
-        global Draw_B1, Draw_B2, Draw_B3
-
-        if event == cv2.EVENT_LBUTTONDOWN:
-            # menu position
-            if y < 40:
-                # menu map, First row Motor Temp
-                Row1 = True
-                Row2,Row3 = False,False
-
-                if x > 3 and x < 40:
-                    OnClose(event)
-                elif x > 45 and x < 105:
-                    Instructions()
-                                    
-                # Selection Control buttons
-                elif x > 230 and x < 270:
-                    # print "first Int Motor"
-                    Draw_G1 = True
-                    Draw_G2, Draw_G3 = False,False                
-                elif x > 276 and x < 312:
-                    # print "second Int Motor"
-                    Draw_G2 = True
-                    Draw_G1, Draw_G3 = False,False
-                elif x > 340 and x < 380:
-                    # print "first decimal Motor"
-                    Draw_G3 = True
-                    Draw_G1, Draw_G2 = False,False
-
-            elif (y > 40)and(y < 80):
-                if enable_orange:
-                    #menu map, Second row Room Temp
-                    Row2 = True
-                    Row1, Row3 = False, False
-                    if x > 230 and x < 270:
-                        # print "first Int Room"
-                        Draw_O1 = True
-                        Draw_O2, Draw_O3 = False,False
-                    elif x > 276 and x < 312:
-                        # print "second Int Room"
-                        Draw_O2 = True
-                        Draw_O1, Draw_O3 = False,False
-
-                    elif x > 340 and x < 380:
-                        # print "first decimal Room"
-                        Draw_O3 = True
-                        Draw_O1, Draw_O2 = False,False
-
-            elif (y > 80)and(y < 120):
-                if enable_blue:
-                    #menu map, Third row Humidity
-                    Row3 = True
-                    Row1, Row2 = False,False
-                    if x > 230 and x < 270:
-                        # print "first Int Humidity"
-                        Draw_B1 = True
-                        Draw_B2, Draw_B3 = False,False
-                    elif x > 276 and x < 312:
-                        # print "second Int Humidity"
-                        Draw_B2 = True
-                        Draw_B1, Draw_B3 = False,False
-
-                    elif x > 340 and x < 380:
-                        # print "first decimal Humidity"
-                        Draw_B3 = True
-                        Draw_B1, Draw_B2 = False,False
-
-            #Get mouse location for Drawing Selecion Boxes
-            else:
-                drawing = True
-                if Row1:    #Geen Temperature
-                    if   Draw_G1: G_Box1.location = [x, y] 
-                    elif Draw_G2: G_Box2.location = [x, y] 
-                    elif Draw_G3: G_Box3.location = [x, y] 
-                
-                elif Row2:    #Room Temp
-                    if   Draw_O1: O_Box1.location = [x, y]
-                    elif Draw_O2: O_Box2.location = [x, y]
-                    elif Draw_O3: O_Box3.location = [x, y]
-                
-                elif Row3:    #Room umidity
-                    if   Draw_B1: Box1.location   = [x, y]
-                    elif Draw_B2: B_Box2.location = [x, y]
-                    elif Draw_B3: B_Box3.location = [x, y]
-
-        #Move selection with mouse (while clicked)
-        elif event == cv2.EVENT_MOUSEMOVE and drawing:
-            if Row1:    #Motor Temp
-                if   Draw_G1: G_Box1.location = [x, y]
-                elif Draw_G2: G_Box2.location = [x, y]
-                elif Draw_G3: G_Box3.location = [x, y]
-            
-            elif Row2:    #Room Temp
-                if   Draw_O1: O_Box1.location = [x, y]
-                elif Draw_O2: O_Box2.location = [x, y]
-                elif Draw_O3: O_Box3.location = [x, y]
-            
-            elif Row3:    #Room umidity
-                if   Draw_B1: B_Box1.location = [x, y]
-                elif Draw_B2: B_Box2.location = [x, y]
-                elif Draw_B3: B_Box3.location = [x, y]
-
-        elif event == cv2.EVENT_LBUTTONUP:
-            drawing = False 
-
     #############################################################################
     # GUI and Window Set Up
     # show main window and add it's trackbar
@@ -433,7 +433,7 @@ if __name__ == '__main__':
         # ROI Regions of Interest
         G1List, O1List, B1List = [],[],[]
         G2List, O2List, B2List = [],[],[]
-        G3List, O2List, B3List = [],[],[]
+        G3List, O3List, B3List = [],[],[]
         sendData = True     #Make false to stop UDP data sending
 
         #Create a list of 10 values and find the mode. 
@@ -455,7 +455,7 @@ if __name__ == '__main__':
                 tempz = imageIdentify(O_Box3)
                 if tempx != None: O1List.append(tempx)          
                 if tempy != None: O2List.append(tempy)
-                if tempz != None: O2List.append(tempz)
+                if tempz != None: O3List.append(tempz)
 
             if enable_blue:
                 #Humidity
@@ -483,7 +483,7 @@ if __name__ == '__main__':
             try: #convert Room Temperature
                 O1 = Counter(O1List).most_common(1)[0][0]
                 O2 = Counter(O2List).most_common(1)[0][0]
-                O3 = Counter(O2List).most_common(1)[0][0]
+                O3 = Counter(O3List).most_common(1)[0][0]
             except:
                 #Set Values to None
                 O1, O2, O3 = None,None,None
