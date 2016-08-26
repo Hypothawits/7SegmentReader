@@ -31,6 +31,7 @@ def OnClose(event):
     stopOpenCv = True
 
 def Instructions():
+    print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     print "Using the config.ini enable the number of numbers you want to read."
     print "Within the config.ini set the ip address you wish to send data to."
     print "Select which digit you would like to set up from the menu."
@@ -38,6 +39,11 @@ def Instructions():
     print "fall within each of the 7 segments."
     print "Adjust the threshold slider for each selection so that the number is clearly"
     print "visible with as little noise as possible."
+    print "box locations and threshold values are only saved when the programme is closed via"
+    print "the exit button, or the escape key 'q' is pressed."
+    print "Press any key to continue!"
+    print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    cv.WaitKey()
 
 def imageIdentify(Box):
     global config
@@ -56,7 +62,7 @@ def imageIdentify(Box):
         Box.selection = preprocessImage(Box.selection, Selection_Frame, Box.threshold)
         
         cv2.imshow(Selection_Frame, Box.selection)    #show proccesed image in selection window
-        cv2.resizeWindow(Selection_Frame, 300, 300)   #keeps the windows a set size
+        cv2.resizeWindow(Selection_Frame, 300, 300)   #keeps the windows a set size so you cant see trackbars
 
         #convert image to number
         ValueList = getValueList(Box.segCoordinates, Box.selection)
@@ -97,13 +103,12 @@ def SegValue(Seg, selection):
         else:
             return 1
     except:
-        #for debuging, should never happen
-        return 5
+        #for debuging, in case pixel out size of selection range
+        return None
 
 def convertToInt(X):
     #Uncomment for values less than 10
-    # if X == [0,0,0,0,0,0,0]:
-    #     return 0
+    if X == [0,0,0,0,0,0,0]: return 0
     if X == [1,1,1,1,1,1,0]: return 0
     if X == [0,1,1,0,0,0,0]: return 1
     if X == [1,1,0,1,1,0,1]: return 2
@@ -342,7 +347,7 @@ if __name__ == '__main__':
     # Config Set Up and Values loaded 
     Config = ConfigParser.ConfigParser()
     Config.read("./config.ini")
-    erosion_iters = ConfigSectionMap("PREPROCESS")['erode'] #Default is 2, seems to work best
+    erosion_iters = ConfigSectionMap("PREPROCESS")['erode'] #Default is 1, seems to work best
     
     enable_orange = True if ConfigSectionMap("OCR")['orange'] == "True" else False #convert string to boolean
     enable_blue   = True if ConfigSectionMap("OCR")['blue']   == "True" else False #convert string to boolean
@@ -350,12 +355,12 @@ if __name__ == '__main__':
     ############################################################################
     # Variable Set Up
     drawing     = False         # true if mouse is pressed
-    Draw_G1     = True          # Must be initialized 
-    Draw_G2     = False         #
-    Draw_G3     = False         # 
-    Row1        = True          #
-    Row2, Row3  = False, False  #
     stopOpenCv  = False         # flag to stop opencv
+    # Must be initialized 
+    Row1,Row2,Row3          = True,False,False
+    Draw_G1,Draw_G2,Draw_G3 = True,False,False
+    Draw_O1,Draw_O2,Draw_O3 = False,False,False
+    Draw_B1,Draw_B2,Draw_B3 = False,False,False
 
     #initialize to None
     greenValue, orangeValue, blueValue = None,None,None
@@ -367,14 +372,14 @@ if __name__ == '__main__':
     sock     = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
     ############################################################################
     # Logging Set Up
-    logging.basicConfig(filename = 'Consol.log', format = '%(levelname)s %(message)s', level = logging.DEBUG)
+    logging.basicConfig(filename = 'Console.log', format = '%(levelname)s %(message)s', level = logging.DEBUG)
     logging.info('~~~~~~ Start Log ~~~~~~   ' + getDate('%y/%m/%d  %H:%M:%S.%f'))
     #############################################################################
     # Video capture and Settings (Note: May not be avilible on all Cameras)
-    cap = cv2.VideoCapture(0)
-    cap.set(cv.CV_CAP_PROP_CONTRAST,   150)
-    cap.set(cv.CV_CAP_PROP_EXPOSURE,   6.0)
-    cap.set(cv.CV_CAP_PROP_BRIGHTNESS, 200)
+    cap = cv2.VideoCapture(            int(ConfigSectionMap("CAMERA")['camera']))
+    cap.set(cv.CV_CAP_PROP_CONTRAST,   int(ConfigSectionMap("CAMERA")['contrast']))
+    cap.set(cv.CV_CAP_PROP_EXPOSURE,   int(ConfigSectionMap("CAMERA")['exposure']))
+    cap.set(cv.CV_CAP_PROP_BRIGHTNESS, int(ConfigSectionMap("CAMERA")['brightness']))
     #############################################################################
     # GUI and Window Set Up
     # show main window and add it's trackbar
@@ -428,76 +433,26 @@ if __name__ == '__main__':
         frame[0:menu.shape[0], 0:menu.shape[1]] = menu
         ########################################################################
         # ROI Regions of Interest
-        G1List, O1List, B1List = [],[],[]
-        G2List, O2List, B2List = [],[],[]
-        G3List, O3List, B3List = [],[],[]
-        sendData = True     #Make false to stop UDP data sending
+        G1, O1, B1 = None,None,None
+        G2, O2, B2 = None,None,None
+        G3, O3, B3 = None,None,None
 
-        #Create a list of 10 values and find the mode. 
-        #If no value is found, dont add to the list
-        for i in range(0, 10, +1):
-            #tempery values used incase imageIdentify was called twice
-            #Temperature Motor
-            tempx = imageIdentify(G_Box1)
-            tempy = imageIdentify(G_Box2)
-            tempz = imageIdentify(G_Box3)
-            if tempx != None: G1List.append(tempx)          
-            if tempy != None: G2List.append(tempy)
-            if tempz != None: G3List.append(tempz)
+        #Temperature Motor
+        G1 = imageIdentify(G_Box1)
+        G2 = imageIdentify(G_Box2)
+        G3 = imageIdentify(G_Box3)
 
-            if enable_orange:
-                #Temperature Room
-                tempx = imageIdentify(O_Box1)
-                tempy = imageIdentify(O_Box2)
-                tempz = imageIdentify(O_Box3)
-                if tempx != None: O1List.append(tempx)          
-                if tempy != None: O2List.append(tempy)
-                if tempz != None: O3List.append(tempz)
+        if enable_orange:
+            #Temperature Room
+            O1 = imageIdentify(O_Box1)
+            O2 = imageIdentify(O_Box2)
+            O3 = imageIdentify(O_Box3)
 
-            if enable_blue:
-                #Humidity
-                tempx = imageIdentify(B_Box1)
-                tempy = imageIdentify(B_Box2)
-                tempz = imageIdentify(B_Box3)
-                if tempx != None: B1List.append(tempx)          
-                if tempy != None: B2List.append(tempy)
-                if tempz != None: B3List.append(tempz)
-
-        #finds the mode of the Lists, if list is empty throws an ERROR and 
-        #sendData is set to false. The program then trys bypassing the 1 second wait. 
-        try: #convert Motor Temperature
-            G1 = Counter(G1List).most_common(1)[0][0]
-            G2 = Counter(G2List).most_common(1)[0][0]
-            G3 = Counter(G3List).most_common(1)[0][0]
-        except:
-            G1, G2, G3 = None,None,None
-            log_String = "No Geen Temp Found ---" + getDate('%H:%M:%S.%f')
-            logging.warning(log_String)
-            # print log_String
-            # sendData = False
-
-        if enable_orange: # Find Mode if Enabled 
-            try: #convert Room Temperature
-                O1 = Counter(O1List).most_common(1)[0][0]
-                O2 = Counter(O2List).most_common(1)[0][0]
-                O3 = Counter(O3List).most_common(1)[0][0]
-            except:
-                #Set Values to None
-                O1, O2, O3 = None,None,None
-                log_String = "No Orange Temp Found --- " + getDate('%H:%M:%S.%f')
-                logging.warning(log_String)
-                # print log_String
-        if enable_blue:   # Find Mode if Enabled 
-            try: #convert Room Humidity
-                B1 = Counter(B1List).most_common(1)[0][0]
-                B2 = Counter(B2List).most_common(1)[0][0]
-                B3 = Counter(B3List).most_common(1)[0][0]
-            except:
-                #Set Values to None
-                B1, B2, B3 = None,None,None
-                log_String = "No Blue Temp Found --- " + Getdate('%H:%M:%S.%f')
-                logging.warning(log_String)
-                # print log_String
+        if enable_blue:
+            #Humidity
+            B1 = imageIdentify(B_Box1)
+            B2 = imageIdentify(B_Box2)
+            B3 = imageIdentify(B_Box3)
 
         draw()  #draw all the rectangels 
 
@@ -517,17 +472,17 @@ if __name__ == '__main__':
         logging.info(log_String)
 
         #Check if there are Values to Send, and if there are any values, send them.
-        if (greenValue != None) or (orangeValue != None) or (blueValue != None):
+        if (greenValue is not None) or (orangeValue is not None) or (blueValue is not None):
             #Send Data over network
             sock.sendto('{"temperatures": %r}'%SendArray, (UDP_IP, UDP_PORT))
 
             c = cv.WaitKey(1000)
-            if c == "q":   break
+            if c == ord("q"):   break
             if stopOpenCv: break
 
         else: # if none values to send do nothing and restart loop.
             c = cv.WaitKey(1)
-            if c == "q":   break
+            if c == ord("q"):   break
             if stopOpenCv: break
 
     # When everything done, release the capture, close windows, save config values
